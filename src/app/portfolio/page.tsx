@@ -352,7 +352,7 @@ export default function PortfolioPage() {
             noDataMessage="No players found in your rosters."
             renderDetailPanel={(item) => (
               <Grid container spacing={4}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="success.main" gutterBottom>
                     Starting In ({item.startersCount})
                   </Typography>
@@ -372,7 +372,7 @@ export default function PortfolioPage() {
                     ))}
                   </List>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Bench In ({item.benchCount})
                   </Typography>

@@ -102,6 +102,7 @@ export default function HomePage() {
           { title: 'Expected Wins', desc: 'Calculate your luck with All-Play win rates.', href: '/expected-wins', cta: 'Analyze Luck' },
           { title: 'Season Review', desc: 'Analyze your final placements and playoff performance.', href: '/performance', cta: 'View Results' },
           { title: 'Legacy Analyzer', desc: 'Explore all-time history, rivalries, and head-to-head records.', href: '/league-history', cta: 'Explore History' },
+          { title: 'Roster Medic', desc: 'Scan rosters for empty spots, IR violations, and inactive starters.', href: '/medic', cta: 'Scan Rosters' },
           { title: 'Player Database', desc: 'Search and filter all active NFL players.', href: '/players', cta: 'Search Players' },
         ].map((feature) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={feature.title}>
