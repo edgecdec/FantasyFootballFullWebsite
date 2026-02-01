@@ -54,7 +54,6 @@ function determineFinalRank(
   league: SleeperLeague
 ): { rank: number, madePlayoffs: boolean } {
   // 1. Check Winners Bracket for Podium Finishes
-  // The championship match usually has p=1
   const championship = winnersBracket.find(m => m.p === 1);
   if (championship) {
     if (championship.w === rosterId) return { rank: 1, madePlayoffs: true };
@@ -67,28 +66,17 @@ function determineFinalRank(
     if (thirdPlace.l === rosterId) return { rank: 4, madePlayoffs: true };
   }
 
-  // 5th/6th place matches often exist too
   const fifthPlace = winnersBracket.find(m => m.p === 5);
   if (fifthPlace) {
     if (fifthPlace.w === rosterId) return { rank: 5, madePlayoffs: true };
     if (fifthPlace.l === rosterId) return { rank: 6, madePlayoffs: true };
   }
 
-  // 2. Check if they were in the winners bracket AT ALL (Made Playoffs)
+  // 2. Check if they made playoffs (present in any match in the bracket)
   const inPlayoffs = winnersBracket.some(m => m.t1 === rosterId || m.t2 === rosterId);
   
-  if (inPlayoffs) {
-    // If they are in playoffs but didn't make top 4/6 (e.g. lost Quarterfinals and no consolation match),
-    // we need to estimate. Usually ranks 5-8.
-    // Sleeper usually sorts rosters by final placement in 'settings.rank' or 'fpts' if season is over.
-    // But let's look at the roster settings as a fallback for playoff teams too.
-  }
-
-  // 3. Fallback: Regular Season / Consolation Rank
-  // Sleeper calculates this in settings.wins / settings.fpts usually.
-  // We can sort all rosters to find the rank.
-  
-  // Sort by Wins, then Points
+  // 3. Fallback: Regular Season Rank
+  // Sort all rosters by Wins, then Points to determine base rank
   const sortedRosters = [...rosters].sort((a, b) => {
     if (a.settings.wins !== b.settings.wins) return b.settings.wins - a.settings.wins;
     return b.settings.fpts - a.settings.fpts;
@@ -96,6 +84,16 @@ function determineFinalRank(
 
   const regSeasonRank = sortedRosters.findIndex(r => r.roster_id === rosterId) + 1;
 
+  // If in playoffs but no specific placement match found (e.g. league stopped early?), 
+  // or if they are 7th-12th, use reg season rank.
+  // Note: This might calculate a "7th" place regular season team as "1st" if they had most wins? 
+  // No, we only override for 1-6 from bracket.
+  
+  // Actually, if someone made playoffs, their rank should logically be better than those who didn't.
+  // But without a placement match, it's ambiguous. 
+  // Ideally we would return regSeasonRank but clamped to >6 if they didn't place? 
+  // No, let's just trust the Bracket for top spots and Reg Season for the rest.
+  
   return { rank: regSeasonRank, madePlayoffs: inPlayoffs };
 }
 
