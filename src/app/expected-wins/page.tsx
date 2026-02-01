@@ -27,23 +27,26 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Checkbox,
-  FormControlLabel,
-  Autocomplete
+  Autocomplete,
+  Divider,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { SleeperService, SleeperUser, SleeperLeague, SleeperRoster, SleeperMatchup } from '@/services/sleeper/sleeperService';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import { SleeperService, SleeperUser, SleeperLeague, SleeperRoster } from '@/services/sleeper/sleeperService';
 
 // --- Types ---
-type LeagueAnalysis = {
-  leagueId: string;
-  name: string;
-  avatar: string;
-  status: 'pending' | 'loading' | 'complete' | 'error';
-  userStats?: {
+type AnalysisStatus = 'idle' | 'pending' | 'loading' | 'complete' | 'error';
+
+type LeagueData = {
+  league: SleeperLeague;
+  status: AnalysisStatus;
+  category: 'included' | 'excluded';
+  stats?: {
     actualWins: number;
     expectedWins: number;
-    pointsFor: number;
   };
   standings?: TeamStats[];
 };
@@ -60,14 +63,15 @@ type TeamStats = {
 
 // --- Helper Components ---
 
-function SummaryCard({ analyses }: { analyses: LeagueAnalysis[] }) {
-  const completed = analyses.filter(a => a.status === 'complete');
+function SummaryCard({ data }: { data: LeagueData[] }) {
+  // Only sum up INCLUDED and COMPLETE leagues
+  const active = data.filter(d => d.category === 'included' && d.status === 'complete');
   
-  const totalActual = completed.reduce((sum, a) => sum + (a.userStats?.actualWins || 0), 0);
-  const totalExpected = completed.reduce((sum, a) => sum + (a.userStats?.expectedWins || 0), 0);
+  const totalActual = active.reduce((sum, d) => sum + (d.stats?.actualWins || 0), 0);
+  const totalExpected = active.reduce((sum, d) => sum + (d.stats?.expectedWins || 0), 0);
   const diff = totalActual - totalExpected;
 
-  const approxGames = completed.length * 14; 
+  const approxGames = active.length * 14; 
   const actualPct = approxGames > 0 ? (totalActual / approxGames) * 100 : 0;
   const expectedPct = approxGames > 0 ? (totalExpected / approxGames) * 100 : 0;
 
@@ -104,30 +108,124 @@ function SummaryCard({ analyses }: { analyses: LeagueAnalysis[] }) {
   );
 }
 
+function LeagueRow({ item, userId, onToggle }: { item: LeagueData, userId: string, onToggle: () => void }) {
+  const { league, status, stats, standings, category } = item;
+  const isIncluded = category === 'included';
+
+  return (
+    <Accordion 
+      disabled={status !== 'complete'} 
+      sx={{ 
+        mb: 1, 
+        border: '1px solid',
+        borderColor: isIncluded ? 'transparent' : 'action.disabledBackground',
+        opacity: isIncluded ? 1 : 0.75
+      }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pr: 2 }}>
+          {/* Action Button */}
+          <Tooltip title={isIncluded ? "Exclude from totals" : "Include in totals"}>
+            <IconButton 
+              size="small" 
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+              color={isIncluded ? "error" : "success"}
+              sx={{ mr: 2 }}
+            >
+              {isIncluded ? <RemoveCircleOutlineIcon /> : <AddCircleOutlineIcon />}
+            </IconButton>
+          </Tooltip>
+
+          <Avatar src={`https://sleepercdn.com/avatars/${league.avatar}`} sx={{ width: 32, height: 32, mr: 2 }} />
+          
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography fontWeight={isIncluded ? "bold" : "normal"}>
+              {league.name}
+            </Typography>
+            {status === 'loading' && <Typography variant="caption" color="primary">Analyzing...</Typography>}
+            {status === 'pending' && <Typography variant="caption" color="text.secondary">Queued</Typography>}
+            {status === 'error' && <Typography variant="caption" color="error">Error</Typography>}
+          </Box>
+
+          {status === 'complete' && stats && (
+            <Box sx={{ textAlign: 'right', display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" display="block" color="text.secondary">Record</Typography>
+                <Typography fontWeight="bold">{stats.actualWins.toFixed(1)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" display="block" color="text.secondary">Exp</Typography>
+                <Typography fontWeight="bold">{stats.expectedWins.toFixed(1)}</Typography>
+              </Box>
+              <Chip 
+                size="small"
+                label={`${(stats.actualWins - stats.expectedWins).toFixed(1)} Luck`}
+                color={stats.actualWins - stats.expectedWins > 0 ? 'success' : 'error'}
+                variant={isIncluded ? "filled" : "outlined"}
+              />
+            </Box>
+          )}
+        </Box>
+      </AccordionSummary>
+      
+      <AccordionDetails>
+        {standings && (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Team</TableCell>
+                  <TableCell align="right">Actual</TableCell>
+                  <TableCell align="right">Expected</TableCell>
+                  <TableCell align="right">Diff</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {standings.map((team) => (
+                  <TableRow key={team.rosterId} selected={team.ownerId === userId}>
+                    <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
+                      {team.name}
+                    </TableCell>
+                    <TableCell align="right">{team.actualWins}</TableCell>
+                    <TableCell align="right">{team.expectedWins.toFixed(2)}</TableCell>
+                    <TableCell align="right" sx={{ 
+                      color: team.actualWins - team.expectedWins > 0 ? 'success.main' : 'error.main',
+                      fontWeight: 'bold'
+                    }}>
+                      {(team.actualWins - team.expectedWins).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </AccordionDetails>
+    </Accordion>
+  );
+}
+
 // --- Main Component ---
 
 export default function ExpectedWinsPage() {
+  // Inputs
   const [username, setUsername] = React.useState('');
   const [savedUsernames, setSavedUsernames] = React.useState<string[]>([]);
   const [year, setYear] = React.useState('2025');
   
-  const [loadingLeagues, setLoadingLeagues] = React.useState(false);
+  // State
+  const [loadingUser, setLoadingUser] = React.useState(false);
   const [analyzing, setAnalyzing] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
-  
   const [user, setUser] = React.useState<SleeperUser | null>(null);
-  const [leagues, setLeagues] = React.useState<SleeperLeague[]>([]);
   
-  // Selection State
-  const [selectedLeagueIds, setSelectedLeagueIds] = React.useState<Set<string>>(new Set());
-  const [hasFetched, setHasFetched] = React.useState(false);
-
-  // Analysis State
-  const [analyses, setAnalyses] = React.useState<LeagueAnalysis[]>([]);
+  // The Master Data Store
+  const [leagueData, setLeagueData] = React.useState<LeagueData[]>([]);
 
   const YEARS = ['2025', '2024', '2023', '2022', '2021'];
 
-  // Load username from local storage on mount
+  // Load Saved Usernames
   React.useEffect(() => {
     const saved = localStorage.getItem('sleeper_usernames');
     if (saved) {
@@ -141,18 +239,18 @@ export default function ExpectedWinsPage() {
 
   const saveUsername = (name: string) => {
     if (!name) return;
-    const newSaved = [name, ...savedUsernames.filter(u => u !== name)].slice(0, 5); // Keep top 5
+    const newSaved = [name, ...savedUsernames.filter(u => u !== name)].slice(0, 5);
     setSavedUsernames(newSaved);
     localStorage.setItem('sleeper_usernames', JSON.stringify(newSaved));
   };
 
-  const handleFetchLeagues = async () => {
+  const handleStart = async () => {
     if (!username) return;
-    setLoadingLeagues(true);
-    setHasFetched(false);
-    setLeagues([]);
-    setAnalyses([]);
-    
+    setLoadingUser(true);
+    setAnalyzing(false);
+    setLeagueData([]);
+    setProgress(0);
+
     try {
       const userRes = await SleeperService.getUser(username);
       if (!userRes) throw new Error('User not found');
@@ -160,78 +258,76 @@ export default function ExpectedWinsPage() {
       saveUsername(username);
 
       const leaguesRes = await SleeperService.getLeagues(userRes.user_id, year);
-      setLeagues(leaguesRes);
-
-      // Auto-select leagues that are NOT ignored
-      const initialSelection = new Set<string>();
-      leaguesRes.forEach(l => {
-        if (!SleeperService.shouldIgnoreLeague(l)) {
-          initialSelection.add(l.league_id);
-        }
-      });
-      setSelectedLeagueIds(initialSelection);
-      setHasFetched(true);
+      
+      // Initialize Data
+      const initialData: LeagueData[] = leaguesRes.map(l => ({
+        league: l,
+        status: 'idle',
+        category: SleeperService.shouldIgnoreLeague(l) ? 'excluded' : 'included',
+      }));
+      
+      setLeagueData(initialData);
+      
+      // Auto-start analysis for INCLUDED leagues
+      const toAnalyze = initialData.filter(d => d.category === 'included').map(d => d.league);
+      setAnalyzing(true);
+      processQueue(toAnalyze, userRes.user_id);
 
     } catch (e) {
       console.error(e);
     } finally {
-      setLoadingLeagues(false);
+      setLoadingUser(false);
     }
   };
 
-  const handleAnalyzeSelected = async () => {
-    if (!user) return;
-    
-    // Filter leagues to only selected ones
-    const leaguesToAnalyze = leagues.filter(l => selectedLeagueIds.has(l.league_id));
-    
-    // Initialize Analysis State
-    const initialAnalyses: LeagueAnalysis[] = leaguesToAnalyze.map(l => ({
-      leagueId: l.league_id,
-      name: l.name,
-      avatar: l.avatar || '',
-      status: 'pending'
-    }));
-    setAnalyses(initialAnalyses);
-    
-    setAnalyzing(true);
-    processQueue(leaguesToAnalyze, user.user_id);
-  };
-
-  const processQueue = async (leagues: SleeperLeague[], userId: string) => {
-    const total = leagues.length;
+  const processQueue = async (leaguesToProcess: SleeperLeague[], userId: string) => {
+    const total = leaguesToProcess.length;
     let completed = 0;
 
-    for (const league of leagues) {
-      // Update status to loading
-      setAnalyses(prev => prev.map(a => 
-        a.leagueId === league.league_id ? { ...a, status: 'loading' } : a
-      ));
+    for (const league of leaguesToProcess) {
+      // Mark as loading
+      setLeagueData(prev => prev.map(d => d.league.league_id === league.league_id ? { ...d, status: 'loading' } : d));
 
       try {
         const result = await analyzeLeague(league, userId);
-        
-        // Update with result
-        setAnalyses(prev => prev.map(a => 
-          a.leagueId === league.league_id ? { ...a, status: 'complete', ...result } : a
+        setLeagueData(prev => prev.map(d => 
+          d.league.league_id === league.league_id 
+            ? { ...d, status: 'complete', stats: result.userStats, standings: result.standings } 
+            : d
         ));
       } catch (e) {
-        setAnalyses(prev => prev.map(a => 
-          a.leagueId === league.league_id ? { ...a, status: 'error' } : a
-        ));
+        setLeagueData(prev => prev.map(d => d.league.league_id === league.league_id ? { ...d, status: 'error' } : d));
       }
 
       completed++;
-      setProgress((completed / total) * 100);
+      // We don't update global progress bar here strictly because user might add more to queue
+      // But we can show a spinner if needed.
       
-      // Rate limit delay
       await new Promise(r => setTimeout(r, 500)); 
     }
-    setAnalyzing(false);
+    setAnalyzing(false); // Queue finished
   };
 
-  const analyzeLeague = async (league: SleeperLeague, userId: string): Promise<Partial<LeagueAnalysis>> => {
-    // 1. Get Rosters & Users
+  const toggleCategory = (id: string) => {
+    setLeagueData(prev => {
+      const target = prev.find(d => d.league.league_id === id);
+      if (!target) return prev;
+
+      const newCategory = target.category === 'included' ? 'excluded' : 'included';
+      
+      // If moving to included and NOT analyzed, trigger analysis
+      if (newCategory === 'included' && (target.status === 'idle' || target.status === 'error')) {
+        // Trigger background analysis for this single league
+        // Note: Ideally we add to a queue manager, but firing one off is okay
+        processQueue([target.league], user!.user_id);
+      }
+
+      return prev.map(d => d.league.league_id === id ? { ...d, category: newCategory } : d);
+    });
+  };
+
+  // Reused Analysis Logic
+  const analyzeLeague = async (league: SleeperLeague, userId: string) => {
     const [rostersRes, usersRes] = await Promise.all([
       fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`),
       fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`)
@@ -239,7 +335,6 @@ export default function ExpectedWinsPage() {
     const rosters: SleeperRoster[] = await rostersRes.json();
     const users: any[] = await usersRes.json();
 
-    // Init Map
     const rosterMap = new Map<number, TeamStats>();
     let myRosterId = -1;
 
@@ -257,43 +352,34 @@ export default function ExpectedWinsPage() {
       });
     });
 
-    // 2. Process Weeks
     const playoffStart = league.settings.playoff_week_start || 15;
     const weeksToAnalyze = playoffStart - 1;
     const useMedian = league.settings.league_average_match === 1;
 
     const weeks = Array.from({length: weeksToAnalyze}, (_, i) => i + 1);
-    
     for (let i = 0; i < weeks.length; i += 4) {
         const chunk = weeks.slice(i, i + 4);
         await Promise.all(chunk.map(async (week) => {
             const matchups = await SleeperService.getMatchups(league.league_id, week);
             if (!matchups || matchups.length < 2) return;
-
             const validMatchups = matchups.filter(m => m.points !== undefined && m.points !== null);
-            const totalTeams = validMatchups.length;
-            if (totalTeams < 2) return;
+            if (validMatchups.length < 2) return;
 
-            // Sort for Median
             const sortedByScore = [...validMatchups].sort((a, b) => b.points - a.points);
-            const medianCutoffIndex = Math.floor(totalTeams / 2);
+            const medianCutoffIndex = Math.floor(validMatchups.length / 2);
             const medianThreshold = sortedByScore[medianCutoffIndex - 1]?.points || 0;
 
             validMatchups.forEach(m1 => {
-                // H2H
                 let wins = 0;
                 validMatchups.forEach(m2 => {
                     if (m1.roster_id === m2.roster_id) return;
                     if (m1.points > m2.points) wins += 1;
                     if (m1.points === m2.points) wins += 0.5;
                 });
-                const h2hEw = wins / (totalTeams - 1);
+                const h2hEw = wins / (validMatchups.length - 1);
                 
-                // Median
                 let medianEw = 0;
-                if (useMedian && m1.points >= medianThreshold && m1.points > 0) {
-                    medianEw = 1;
-                }
+                if (useMedian && m1.points >= medianThreshold && m1.points > 0) medianEw = 1;
 
                 const t = rosterMap.get(m1.roster_id);
                 if (t) t.expectedWins += (h2hEw + medianEw);
@@ -314,22 +400,12 @@ export default function ExpectedWinsPage() {
     };
   };
 
-  const handleToggleLeague = (id: string) => {
-    const newSet = new Set(selectedLeagueIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedLeagueIds(newSet);
-  };
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
         League Luck Analyzer
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        See your "True" record across all leagues based on All-Play Expected Wins.
-      </Typography>
-
+      
       {/* Input */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -341,9 +417,8 @@ export default function ExpectedWinsPage() {
             renderInput={(params) => (
               <TextField {...params} label="Sleeper Username" variant="outlined" sx={{ minWidth: 200 }} />
             )}
-            disabled={analyzing}
+            disabled={analyzing || loadingUser}
           />
-          
           <FormControl sx={{ minWidth: 100 }}>
             <InputLabel>Year</InputLabel>
             <Select value={year} label="Year" onChange={(e) => setYear(e.target.value)} disabled={analyzing}>
@@ -353,141 +428,50 @@ export default function ExpectedWinsPage() {
           <Button 
             variant="contained" 
             size="large" 
-            onClick={handleFetchLeagues}
-            disabled={loadingLeagues || analyzing || !username}
+            onClick={handleStart}
+            disabled={loadingUser || !username}
             sx={{ height: 56 }}
           >
-            {loadingLeagues ? 'Fetching...' : 'Find Leagues'}
+            {loadingUser ? 'Fetching...' : 'Analyze'}
           </Button>
         </Box>
       </Paper>
 
-      {/* League Selection Step */}
-      {hasFetched && !analyzing && analyses.length === 0 && (
+      {/* Summary */}
+      {leagueData.length > 0 && <SummaryCard data={leagueData} />}
+
+      {/* Included Leagues */}
+      {leagueData.some(d => d.category === 'included') && (
         <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">
-              Found {leagues.length} Leagues ({selectedLeagueIds.size} Selected)
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleAnalyzeSelected}
-              disabled={selectedLeagueIds.size === 0}
-            >
-              Analyze Selected
-            </Button>
-          </Box>
-          
-          <Grid container spacing={2}>
-            {leagues.map(l => {
-              const ignored = SleeperService.shouldIgnoreLeague(l);
-              return (
-                <Grid item xs={12} md={6} lg={4} key={l.league_id}>
-                  <Paper variant="outlined" sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    opacity: selectedLeagueIds.has(l.league_id) ? 1 : 0.6,
-                    bgcolor: selectedLeagueIds.has(l.league_id) ? 'background.paper' : 'action.hover'
-                  }}>
-                    <Checkbox 
-                      checked={selectedLeagueIds.has(l.league_id)}
-                      onChange={() => handleToggleLeague(l.league_id)}
-                    />
-                    <Avatar src={`https://sleepercdn.com/avatars/${l.avatar}`} sx={{ width: 32, height: 32, mr: 1 }} />
-                    <Box sx={{ overflow: 'hidden' }}>
-                      <Typography noWrap fontWeight="medium" title={l.name}>{l.name}</Typography>
-                      {ignored && <Typography variant="caption" color="warning.main">Auto-Ignored</Typography>}
-                    </Box>
-                  </Paper>
-                </Grid>
-              );
-            })}
-          </Grid>
+          <Typography variant="h6" gutterBottom color="primary">Included Leagues</Typography>
+          {leagueData.filter(d => d.category === 'included').map(item => (
+            <LeagueRow 
+              key={item.league.league_id} 
+              item={item} 
+              userId={user!.user_id} 
+              onToggle={() => toggleCategory(item.league.league_id)} 
+            />
+          ))}
         </Box>
       )}
 
-      {/* Results */}
-      {(analyzing || analyses.length > 0) && (
-        <>
-          {analyzing && <LinearProgress variant="determinate" value={progress} sx={{ mb: 3 }} />}
-          <SummaryCard analyses={analyses} />
-
-          <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
-            League Breakdown
-          </Typography>
-          
-          {analyses.map((league) => (
-            <Accordion key={league.leagueId} disabled={league.status !== 'complete'}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pr: 2 }}>
-                  <Avatar src={`https://sleepercdn.com/avatars/${league.avatar}`} sx={{ width: 32, height: 32, mr: 2 }} />
-                  
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography fontWeight="bold">{league.name}</Typography>
-                    {league.status === 'loading' && <Typography variant="caption" color="text.secondary">Analyzing...</Typography>}
-                    {league.status === 'pending' && <Typography variant="caption" color="text.secondary">Queued</Typography>}
-                  </Box>
-
-                  {league.status === 'complete' && league.userStats && (
-                    <Box sx={{ textAlign: 'right', display: 'flex', gap: 2, alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="caption" display="block" color="text.secondary">Record</Typography>
-                        <Typography fontWeight="bold">{league.userStats.actualWins.toFixed(1)} Wins</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" display="block" color="text.secondary">Expected</Typography>
-                        <Typography fontWeight="bold">{league.userStats.expectedWins.toFixed(1)} Wins</Typography>
-                      </Box>
-                      <Chip 
-                        size="small"
-                        label={`${(league.userStats.actualWins - league.userStats.expectedWins).toFixed(1)} Luck`}
-                        color={league.userStats.actualWins - league.userStats.expectedWins > 0 ? 'success' : 'error'}
-                        variant="outlined"
-                      />
-                    </Box>
-                  )}
-                </Box>
-              </AccordionSummary>
-              
-              <AccordionDetails>
-                {league.standings && (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Team</TableCell>
-                          <TableCell align="right">Actual</TableCell>
-                          <TableCell align="right">Expected</TableCell>
-                          <TableCell align="right">Diff</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {league.standings.map((team) => (
-                          <TableRow key={team.rosterId} selected={user && team.ownerId === user.user_id}>
-                            <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
-                              {team.name}
-                            </TableCell>
-                            <TableCell align="right">{team.actualWins}</TableCell>
-                            <TableCell align="right">{team.expectedWins.toFixed(2)}</TableCell>
-                            <TableCell align="right" sx={{ 
-                              color: team.actualWins - team.expectedWins > 0 ? 'success.main' : 'error.main',
-                              fontWeight: 'bold'
-                            }}>
-                              {(team.actualWins - team.expectedWins).toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </AccordionDetails>
-            </Accordion>
+      {/* Excluded Leagues */}
+      {leagueData.some(d => d.category === 'excluded') && (
+        <Box sx={{ mb: 4, opacity: 0.8 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Typography variant="h6" color="text.secondary">Excluded Leagues</Typography>
+            <Chip label="Ignored from Totals" size="small" />
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+          {leagueData.filter(d => d.category === 'excluded').map(item => (
+            <LeagueRow 
+              key={item.league.league_id} 
+              item={item} 
+              userId={user!.user_id} 
+              onToggle={() => toggleCategory(item.league.league_id)} 
+            />
           ))}
-        </>
+        </Box>
       )}
     </Container>
   );
