@@ -22,7 +22,7 @@ import {
   Link as MuiLink,
   Typography
 } from '@mui/material';
-import { SleeperService, SleeperUser, SleeperMatchup } from '@/services/sleeper/sleeperService';
+import { SleeperService, SleeperUser, SleeperMatchup, SleeperLeague } from '@/services/sleeper/sleeperService';
 import playerData from '../../../data/sleeper_players.json';
 import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
 import PageHeader from '@/components/common/PageHeader';
@@ -55,6 +55,7 @@ export default function PortfolioPage() {
   
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
+  const [statusText, setStatusText] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   
   const [user, setUser] = React.useState<SleeperUser | null>(null);
@@ -72,6 +73,21 @@ export default function PortfolioPage() {
     }
   }, []);
 
+  // Auto-run if username exists and not loaded
+  React.useEffect(() => {
+    if (username && !loading && !user) {
+      const t = setTimeout(() => handleAnalyze(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [username]);
+
+  // Re-run on filter change if user is loaded
+  React.useEffect(() => {
+    if (user && !loading) {
+      handleAnalyze();
+    }
+  }, [year, week]);
+
   // Save helper
   const saveUsername = (name: string) => {
     const saved = localStorage.getItem('sleeper_usernames');
@@ -80,12 +96,6 @@ export default function PortfolioPage() {
     localStorage.setItem('sleeper_usernames', JSON.stringify(list));
   };
 
-  React.useEffect(() => {
-    if (username && !loading && user) {
-      handleAnalyze();
-    }
-  }, [year, week]);
-
   const handleAnalyze = async () => {
     if (!username) return;
     
@@ -93,6 +103,7 @@ export default function PortfolioPage() {
     setError(null);
     setProgress(0);
     setPortfolio([]);
+    setStatusText('Finding leagues...');
     
     try {
       let currentUser = user;
@@ -111,85 +122,104 @@ export default function PortfolioPage() {
         return;
       }
 
-      const rosterMap = await SleeperService.fetchAllRosters(
-        leagues, 
-        currentUser.user_id,
-        (completed, total) => {
-          const scale = week === 'live' ? 100 : 50;
-          setProgress((completed / total) * scale);
-        }
-      );
+      // --- Progressive Loading Logic ---
+      
+      const playerCounts = new Map<string, { count: number, startCount: number, benchCount: number, leagues: LeagueInfo[] }>();
+      const playersJson = (playerData as any).players;
+      
+      // Batch size for processing (update UI every X leagues)
+      const BATCH_SIZE = 5;
+      
+      for (let i = 0; i < leagues.length; i += BATCH_SIZE) {
+        const batchLeagues = leagues.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(leagues.length / BATCH_SIZE);
+        
+        setStatusText(`Analyzing batch ${batchNumber}/${totalBatches}...`);
 
-      let matchupMap = new Map<string, SleeperMatchup[]>();
-      if (week !== 'live') {
-        matchupMap = await SleeperService.fetchAllMatchups(
-          leagues,
-          parseInt(week, 10),
-          (completed, total) => {
-            setProgress(50 + (completed / total) * 50);
-          }
+        // 1. Fetch Rosters for Batch
+        const rosterMap = await SleeperService.fetchAllRosters(
+          batchLeagues, 
+          currentUser.user_id,
+          () => {} // No granular progress needed here, we track by batch
         );
+
+        // 2. Fetch Matchups for Batch (if needed)
+        let matchupMap = new Map<string, SleeperMatchup[]>();
+        if (week !== 'live') {
+          matchupMap = await SleeperService.fetchAllMatchups(
+            batchLeagues,
+            parseInt(week, 10),
+            () => {}
+          );
+        }
+
+        // 3. Process Batch
+        batchLeagues.forEach(league => {
+          const userRoster = rosterMap.get(league.league_id);
+          if (!userRoster) return;
+
+          let players: string[] = [];
+          let starters: string[] = [];
+
+          if (week === 'live') {
+            players = userRoster.players || [];
+            starters = userRoster.starters || [];
+          } else {
+            const leagueMatchups = matchupMap.get(league.league_id);
+            const myMatchup = leagueMatchups?.find(m => m.roster_id === userRoster.roster_id);
+            if (myMatchup) {
+              players = myMatchup.players || [];
+              starters = myMatchup.starters || [];
+            }
+          }
+
+          players.forEach(pid => {
+            const current = playerCounts.get(pid) || { count: 0, startCount: 0, benchCount: 0, leagues: [] };
+            current.count++;
+            
+            const isStarter = starters.includes(pid);
+            if (isStarter) current.startCount++;
+            else current.benchCount++;
+
+            current.leagues.push({
+              id: league.league_id,
+              name: league.name,
+              isStarter
+            });
+            
+            playerCounts.set(pid, current);
+          });
+        });
+
+        // 4. Update State Progressively
+        const items: PortfolioItem[] = [];
+        playerCounts.forEach((data, pid) => {
+          const pInfo = playersJson[pid];
+          // Filter valid positions
+          if (pInfo && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(pInfo.position)) {
+             items.push({
+               playerId: pid,
+               playerData: pInfo,
+               shares: data.count,
+               startersCount: data.startCount,
+               benchCount: data.benchCount,
+               // Exposure calc: using TOTAL leagues found, not just processed.
+               // This ensures the % represents "Global Portfolio Exposure" correctly.
+               exposure: (data.count / leagues.length) * 100,
+               leagues: data.leagues
+             });
+          }
+        });
+
+        setPortfolio(items);
+        setProgress(((i + batchLeagues.length) / leagues.length) * 100);
+        
+        // Small delay to allow UI render cycle if needed, though await helps
+        await new Promise(r => setTimeout(r, 10));
       }
 
-      // Aggregation
-      const playerCounts = new Map<string, { count: number, startCount: number, benchCount: number, leagues: LeagueInfo[] }>();
-      
-      leagues.forEach(league => {
-        const userRoster = rosterMap.get(league.league_id);
-        if (!userRoster) return;
-
-        let players: string[] = [];
-        let starters: string[] = [];
-
-        if (week === 'live') {
-          players = userRoster.players || [];
-          starters = userRoster.starters || [];
-        } else {
-          const leagueMatchups = matchupMap.get(league.league_id);
-          const myMatchup = leagueMatchups?.find(m => m.roster_id === userRoster.roster_id);
-          if (myMatchup) {
-            players = myMatchup.players || [];
-            starters = myMatchup.starters || [];
-          }
-        }
-
-        players.forEach(pid => {
-          const current = playerCounts.get(pid) || { count: 0, startCount: 0, benchCount: 0, leagues: [] };
-          current.count++;
-          
-          const isStarter = starters.includes(pid);
-          if (isStarter) current.startCount++;
-          else current.benchCount++;
-
-          current.leagues.push({
-            id: league.league_id,
-            name: league.name,
-            isStarter
-          });
-          
-          playerCounts.set(pid, current);
-        });
-      });
-
-      const items: PortfolioItem[] = [];
-      const playersJson = (playerData as any).players;
-
-      playerCounts.forEach((data, pid) => {
-        const pInfo = playersJson[pid];
-        if (pInfo && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(pInfo.position)) {
-           items.push({
-             playerId: pid,
-             playerData: pInfo,
-             shares: data.count,
-             startersCount: data.startCount,
-             benchCount: data.benchCount,
-             exposure: (data.count / leagues.length) * 100,
-             leagues: data.leagues
-           });
-        }
-      });
-
-      setPortfolio(items);
+      setStatusText('Complete!');
 
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -305,6 +335,7 @@ export default function PortfolioPage() {
           <Button 
             variant="contained" 
             size="large" 
+            color="secondary"
             onClick={handleAnalyze}
             disabled={loading || !username}
             sx={{ height: 56 }}
@@ -320,14 +351,14 @@ export default function PortfolioPage() {
 
       {loading && (
         <Box sx={{ width: '100%', mb: 4 }}>
-          <Typography variant="body2" gutterBottom>
-            Scanning Leagues... {Math.round(progress)}%
+          <Typography variant="body2" gutterBottom align="center">
+            {statusText} ({Math.round(progress)}%)
           </Typography>
           <LinearProgress variant="determinate" value={progress} />
         </Box>
       )}
 
-      {user && !loading && (
+      {user && (portfolio.length > 0 || !loading) && (
         <>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Avatar 
@@ -337,7 +368,7 @@ export default function PortfolioPage() {
             <Box>
               <Typography variant="h5">{user.display_name}</Typography>
               <Typography variant="body2" color="text.secondary">
-                {totalLeagues} Leagues found in {year} {week !== 'live' ? `(Week ${week})` : ''}
+                {totalLeagues} Leagues found in {year}
               </Typography>
             </Box>
           </Box>
