@@ -472,26 +472,28 @@ export default function PerformancePage() {
       {leagueData.some(d => d.category === 'included') && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom color="primary">Included Leagues</Typography>
-          <Grid container spacing={2}>
-            {leagueData.filter(d => d.category === 'included').map(item => (
-              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
-                <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} />
-              </Grid>
-            ))}
-          </Grid>
+          {leagueData.filter(d => d.category === 'included').map(item => (
+            <LeagueRow 
+              key={item.league.league_id} 
+              item={item} 
+              onToggle={() => toggleCategory(item.league.league_id)} 
+              userId={user!.user_id} 
+            />
+          ))}
         </Box>
       )}
 
       {leagueData.some(d => d.category === 'excluded') && (
         <Box sx={{ mb: 4, opacity: 0.8 }}>
           <Divider sx={{ mb: 2 }} >Excluded Leagues</Divider>
-          <Grid container spacing={2}>
-            {leagueData.filter(d => d.category === 'excluded').map(item => (
-              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
-                <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} />
-              </Grid>
-            ))}
-          </Grid>
+          {leagueData.filter(d => d.category === 'excluded').map(item => (
+            <LeagueRow 
+              key={item.league.league_id} 
+              item={item} 
+              onToggle={() => toggleCategory(item.league.league_id)} 
+              userId={user!.user_id} 
+            />
+          ))}
         </Box>
       )}
     </Container>
