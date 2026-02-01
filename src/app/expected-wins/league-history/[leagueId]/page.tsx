@@ -47,6 +47,11 @@ type Averages = {
   ownerId: string;
   avgExpected: number;
   avgActual: number;
+  avgPointsFor: number;
+  avgPointsAgainst: number;
+  totalLuck: number;
+  avgLuck: number;
+  avgExpectedAboveAvg: number;
   yearsCount: number;
 };
 
@@ -100,11 +105,7 @@ export default function LeagueHistoryPage() {
         const total = history.length;
         const results: RawHistoryPoint[] = [];
         const ownerMap = new Map<string, string>(); 
-        const ownerStatsMap = new Map<string, { sumExp: number; sumAct: number; count: number }>();
-
-        // Process oldest to newest for consistent progress bar UX? 
-        // No, fetch order usually newest to oldest from Sleeper API.
-        // We'll just collect and sort later.
+        const ownerStatsMap = new Map<string, { sumExp: number; sumAct: number; sumPF: number; sumPA: number; count: number }>();
 
         for (let i = 0; i < total; i++) {
           const league = history[i];
@@ -126,9 +127,11 @@ export default function LeagueHistoryPage() {
               };
 
               // Aggregate for averages
-              const curr = ownerStatsMap.get(team.ownerId) || { sumExp: 0, sumAct: 0, count: 0 };
+              const curr = ownerStatsMap.get(team.ownerId) || { sumExp: 0, sumAct: 0, sumPF: 0, sumPA: 0, count: 0 };
               curr.sumExp += team.expectedWins;
               curr.sumAct += team.actualWins;
+              curr.sumPF += team.pointsFor;
+              curr.sumPA += team.pointsAgainst;
               curr.count++;
               ownerStatsMap.set(team.ownerId, curr);
             });
@@ -149,11 +152,29 @@ export default function LeagueHistoryPage() {
           setOwners(uniqueOwners);
 
           const avgList: Averages[] = [];
+          
+          // Calculate Global Average Expected Wins per Season (Baseline)
+          let globalTotalExpected = 0;
+          let globalTotalSeasons = 0;
+          ownerStatsMap.forEach((val) => {
+              globalTotalExpected += val.sumExp;
+              globalTotalSeasons += val.count;
+          });
+          const leagueBaselineExp = globalTotalSeasons > 0 ? globalTotalExpected / globalTotalSeasons : 0;
+
           ownerStatsMap.forEach((val, key) => {
+              const totalLuck = val.sumAct - val.sumExp;
+              const avgExpected = val.sumExp / val.count;
+              
               avgList.push({
                   ownerId: key,
-                  avgExpected: val.sumExp / val.count,
+                  avgExpected,
                   avgActual: val.sumAct / val.count,
+                  avgPointsFor: val.sumPF / val.count,
+                  avgPointsAgainst: val.sumPA / val.count,
+                  totalLuck,
+                  avgLuck: totalLuck / val.count,
+                  avgExpectedAboveAvg: avgExpected - leagueBaselineExp,
                   yearsCount: val.count
               });
           });
@@ -253,18 +274,54 @@ export default function LeagueHistoryPage() {
                           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
                               {avg.yearsCount} Seasons
                           </Typography>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, rowGap: 2 }}>
                               <Box>
-                                  <Typography variant="caption" color="text.secondary">Avg Exp</Typography>
-                                  <Typography variant="body1" color="primary.main" fontWeight="bold">
+                                  <Typography variant="caption" color="text.secondary" display="block">Avg Exp</Typography>
+                                  <Typography variant="body2" color="primary.main" fontWeight="bold">
                                       {avg.avgExpected.toFixed(2)}
                                   </Typography>
                               </Box>
                               <Box>
-                                  <Typography variant="caption" color="text.secondary">Avg Act</Typography>
-                                  <Typography variant="body1">
+                                  <Typography variant="caption" color="text.secondary" display="block">Avg Actual</Typography>
+                                  <Typography variant="body2">
                                       {avg.avgActual.toFixed(2)}
                                   </Typography>
+                              </Box>
+                              
+                              <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">Avg PF</Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                      {avg.avgPointsFor.toFixed(0)}
+                                  </Typography>
+                              </Box>
+                              <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">Avg PA</Typography>
+                                  <Typography variant="body2">
+                                      {avg.avgPointsAgainst.toFixed(0)}
+                                  </Typography>
+                              </Box>
+
+                              <Box sx={{ gridColumn: 'span 2', pt: 1, borderTop: '1px dashed #444', display: 'flex', justifyContent: 'space-between' }}>
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary" display="block">Avg Luck</Typography>
+                                    <Typography 
+                                        variant="body2" 
+                                        fontWeight="bold"
+                                        sx={{ color: avg.avgLuck > 0 ? 'success.main' : 'error.main' }}
+                                    >
+                                        {avg.avgLuck > 0 ? '+' : ''}{avg.avgLuck.toFixed(2)}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ textAlign: 'right' }}>
+                                    <Typography variant="caption" color="text.secondary" display="block">Exp &gt; Avg</Typography>
+                                    <Typography 
+                                        variant="body2" 
+                                        fontWeight="bold"
+                                        sx={{ color: avg.avgExpectedAboveAvg > 0 ? 'success.main' : 'error.main' }}
+                                    >
+                                        {avg.avgExpectedAboveAvg > 0 ? '+' : ''}{avg.avgExpectedAboveAvg.toFixed(2)}
+                                    </Typography>
+                                  </Box>
                               </Box>
                           </Box>
                       </Paper>
