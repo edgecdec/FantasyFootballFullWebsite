@@ -25,6 +25,7 @@ export default function HomePage() {
         {[
           { title: 'Live Draft Assistant', desc: 'Real-time pick suggestions based on value.', href: '/draft', cta: 'Start Draft' },
           { title: 'Portfolio Tracker', desc: 'Track your player exposure across all leagues.', href: '/portfolio', cta: 'Analyze Portfolio' },
+          { title: 'Expected Wins', desc: 'Calculate your luck with All-Play win rates.', href: '/expected-wins', cta: 'Analyze Luck' },
           { title: 'Player Database', desc: 'Search and filter all active NFL players.', href: '/players', cta: 'Search Players' },
           { title: 'Rankings', desc: 'Consensus rankings from top experts.', href: '/rankings', cta: 'View Rankings' },
           { title: 'Team Rater', desc: 'Get a comprehensive grade for your team.', href: '/rate-my-team', cta: 'Rate Team' },

@@ -33,6 +33,15 @@ export type SleeperRoster = {
   };
 };
 
+export type SleeperMatchup = {
+  starters: string[];
+  roster_id: number;
+  players: string[];
+  matchup_id: number;
+  points: number;
+  custom_points: number | null;
+};
+
 // Cache keys
 const CACHE_PREFIX = 'sleeper_cache_';
 const CACHE_DURATION_MS = 1000 * 60 * 15; // 15 minutes
@@ -97,6 +106,23 @@ export const SleeperService = {
       return data;
     } catch (e) {
       console.error('Error fetching leagues', e);
+      return [];
+    }
+  },
+
+  async getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]> {
+    const cacheKey = `matchups_${leagueId}_${week}`;
+    const cached = getCached<SleeperMatchup[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const res = await fetch(`${BASE_URL}/league/${leagueId}/matchups/${week}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      setCached(cacheKey, data);
+      return data;
+    } catch (e) {
+      console.error(`Error fetching matchups for league ${leagueId} week ${week}`, e);
       return [];
     }
   },
