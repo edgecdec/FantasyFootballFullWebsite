@@ -36,61 +36,46 @@ const MENU_ITEMS = [
   { text: 'Player Database', href: '/players', icon: <GroupsIcon /> },
 ];
 
+import { useUser } from '@/context/UserContext';
+import {
+  Avatar,
+  Menu,
+  MenuItem as MuiMenuItem
+} from '@mui/material';
+
+// ... existing code ...
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useUser();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const pathname = usePathname();
+  
+  // Avatar Menu State
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+  const handleLogout = () => {
+    handleClose();
+    logout();
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const drawerContent = (
-    <div>
-      <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <SportsFootballIcon color="primary" />
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
-          FF Analytics
-        </Typography>
-      </Toolbar>
-      <Divider />
-      <List>
-        {MENU_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <ListItem key={item.text} disablePadding>
-              <Link href={item.href} passHref style={{ textDecoration: 'none', color: 'inherit', width: '100%' }}>
-                <ListItemButton 
-                  selected={isActive}
-                  onClick={() => isMobile && setMobileOpen(false)}
-                  sx={{
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': { bgcolor: 'primary.dark' },
-                      '& .MuiListItemIcon-root': { color: 'inherit' }
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ color: isActive ? 'inherit' : 'text.secondary' }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </Link>
-            </ListItem>
-          );
-        })}
-      </List>
-    </div>
-  );
+// ... existing drawerContent ...
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       
-      {/* Top Bar (Mobile Only or Full Width?) -> Let's do Full Width for Title */}
+      {/* Top Bar */}
       <AppBar
         position="fixed"
         sx={{
@@ -98,7 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ml: { md: `${drawerWidth}px` },
           bgcolor: 'background.paper',
           color: 'text.primary',
-          boxShadow: 1 // Subtle shadow
+          boxShadow: 1 
         }}
       >
         <Toolbar>
@@ -112,12 +97,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <MenuIcon />
           </IconButton>
           
-          {/* Page Title (Dynamic based on route) */}
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {MENU_ITEMS.find(i => i.href === pathname)?.text || 'Fantasy Football'}
           </Typography>
+
+          {/* User Avatar */}
+          {user && (
+            <div>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                onClick={handleMenu}
+                color="inherit"
+                sx={{ p: 0 }}
+              >
+                <Avatar 
+                  src={`https://sleepercdn.com/avatars/${user.avatar}`} 
+                  alt={user.display_name}
+                />
+              </IconButton>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                <MuiMenuItem disabled>{user.display_name}</MuiMenuItem>
+                <Divider />
+                <MuiMenuItem onClick={handleLogout}>Change User</MuiMenuItem>
+              </Menu>
+            </div>
+          )}
         </Toolbar>
       </AppBar>
+// ... rest of component
 
       {/* Navigation Drawer */}
       <Box

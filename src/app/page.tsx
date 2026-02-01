@@ -1,33 +1,108 @@
+'use client';
+
 import * as React from 'react';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
-import Button from '@mui/material/Button';
+import { 
+  Container, 
+  Typography, 
+  Box, 
+  Grid, 
+  Card, 
+  CardContent, 
+  CardActions, 
+  Button, 
+  TextField, 
+  Avatar,
+  IconButton,
+  Tooltip
+} from '@mui/material';
 import Link from 'next/link';
+import { useUser } from '@/context/UserContext';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 export default function HomePage() {
+  const { user, fetchUser, logout, loading } = useUser();
+  const [usernameInput, setUsernameInput] = React.useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!usernameInput) return;
+    try {
+      await fetchUser(usernameInput);
+    } catch (e) {
+      alert('User not found!');
+    }
+  };
+
   return (
     <Container maxWidth="lg">
-      <Box sx={{ my: 4, textAlign: 'center' }}>
-        <Typography variant="h2" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Fantasy Football Analytics
-        </Typography>
-        <Typography variant="h5" component="h2" gutterBottom color="text.secondary">
+      <Box sx={{ my: 6, textAlign: 'center' }}>
+        
+        {/* Welcome / Login Section */}
+        {user ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 6 }}>
+            <Avatar 
+              src={`https://sleepercdn.com/avatars/${user.avatar}`} 
+              sx={{ width: 100, height: 100, mb: 2, border: '4px solid #fff', boxShadow: 3 }}
+            />
+            <Typography variant="h3" component="h1" gutterBottom fontWeight="bold">
+              Welcome back, {user.display_name}!
+            </Typography>
+            <Button 
+              variant="outlined" 
+              color="error" 
+              startIcon={<LogoutIcon />} 
+              onClick={logout}
+              sx={{ mt: 1 }}
+            >
+              Change User
+            </Button>
+          </Box>
+        ) : (
+          <Box sx={{ maxWidth: 500, mx: 'auto', mb: 6 }}>
+            <Typography variant="h2" component="h1" gutterBottom fontWeight="bold">
+              Fantasy Analytics
+            </Typography>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
+              Enter your Sleeper username to unlock personalized insights.
+            </Typography>
+            
+            <form onSubmit={handleLogin}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField 
+                  fullWidth 
+                  label="Sleeper Username" 
+                  variant="outlined" 
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  disabled={loading}
+                />
+                <Button 
+                  type="submit" 
+                  variant="contained" 
+                  size="large"
+                  disabled={loading || !usernameInput}
+                  sx={{ px: 4 }}
+                >
+                  {loading ? '...' : 'Go'}
+                </Button>
+              </Box>
+            </form>
+          </Box>
+        )}
+
+        <Typography variant="h5" component="h2" gutterBottom color="text.secondary" sx={{ opacity: user ? 1 : 0.5 }}>
           Dominate your league with advanced tools and rankings.
         </Typography>
       </Box>
 
-      <Grid container spacing={4} sx={{ mt: 4 }}>
+      {/* Feature Cards */}
+      <Grid container spacing={4} sx={{ mt: 2 }}>
         {[
           { title: 'Portfolio Tracker', desc: 'Track your player exposure across all leagues.', href: '/portfolio', cta: 'Analyze Portfolio' },
           { title: 'Expected Wins', desc: 'Calculate your luck with All-Play win rates.', href: '/expected-wins', cta: 'Analyze Luck' },
           { title: 'Player Database', desc: 'Search and filter all active NFL players.', href: '/players', cta: 'Search Players' },
         ].map((feature) => (
-          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={feature.title}>
+          <Grid item xs={12} sm={6} md={4} key={feature.title}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant="h5" component="div">
