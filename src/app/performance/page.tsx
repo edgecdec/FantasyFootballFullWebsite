@@ -164,32 +164,32 @@ function SummaryCard({ data }: { data: LeaguePerformanceData[] }) {
   const expPodiums = active.reduce((sum, d) => sum + (3 / (d.result?.totalTeams || 12)), 0);
 
   return (
-    <Card sx={{ mb: 4, bgcolor: '#e3f2fd', color: 'text.primary', border: '1px solid', borderColor: 'primary.light' }}>
+    <Card sx={{ mb: 4, bgcolor: '#0d47a1', color: 'white', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 4 }}>
       <CardContent>
         <Grid container spacing={4} textAlign="center">
           <Grid size={{ xs: 6, md: 3 }}>
-            <Typography variant="h6" color="primary.main">Avg Finish %</Typography>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Avg Finish %</Typography>
             <Typography variant="h3" fontWeight="bold">{avgPercentile.toFixed(0)}%</Typography>
-            <Typography variant="caption" color="text.secondary">Avg Rank: {avgFinish.toFixed(1)}</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Avg Rank: {avgFinish.toFixed(1)}</Typography>
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
-            <Typography variant="h6" color="primary.main">Golds 🥇</Typography>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Golds 🥇</Typography>
             <Typography variant="h3" fontWeight="bold">
-              {championships} <Typography component="span" variant="body1" sx={{ color: 'text.secondary', opacity: 0.8 }}>({expChampionships.toFixed(1)})</Typography>
+              {championships} <Typography component="span" variant="body1" sx={{ color: 'rgba(255,255,255,0.7)' }}>({expChampionships.toFixed(1)})</Typography>
             </Typography>
-            <Typography variant="caption" color="text.secondary">Exp: {expChampionships.toFixed(1)}</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Exp: {expChampionships.toFixed(1)}</Typography>
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
-            <Typography variant="h6" color="primary.main">Podiums 🏆</Typography>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Podiums 🏆</Typography>
             <Typography variant="h3" fontWeight="bold">
-              {podiums} <Typography component="span" variant="body1" sx={{ color: 'text.secondary', opacity: 0.8 }}>({expPodiums.toFixed(1)})</Typography>
+              {podiums} <Typography component="span" variant="body1" sx={{ color: 'rgba(255,255,255,0.7)' }}>({expPodiums.toFixed(1)})</Typography>
             </Typography>
-            <Typography variant="caption" color="text.secondary">Exp: {expPodiums.toFixed(1)}</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Exp: {expPodiums.toFixed(1)}</Typography>
           </Grid>
           <Grid size={{ xs: 6, md: 3 }}>
-            <Typography variant="h6" color="primary.main">Playoffs</Typography>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Playoffs</Typography>
             <Typography variant="h3" fontWeight="bold">{playoffRate.toFixed(0)}%</Typography>
-            <Typography variant="caption" color="text.secondary">Rate</Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>Rate</Typography>
           </Grid>
         </Grid>
       </CardContent>
