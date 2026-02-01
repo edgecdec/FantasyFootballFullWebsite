@@ -75,6 +75,14 @@ export default function RosterMedicPage() {
     }
   }, []);
 
+  // Auto-run scan when username is available
+  React.useEffect(() => {
+    if (username && !loading && !scanned) {
+      const t = setTimeout(() => startScan(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [username]);
+
   const saveUsername = (name: string) => {
     if (!name) return;
     const saved = localStorage.getItem('sleeper_usernames');
@@ -239,7 +247,6 @@ export default function RosterMedicPage() {
           <Button 
             variant="contained" 
             size="large" 
-            color="error"
             onClick={startScan}
             disabled={loading || !username}
             sx={{ height: 56, px: 4 }}
@@ -247,7 +254,7 @@ export default function RosterMedicPage() {
             {loading ? 'Scanning...' : 'Scan My Rosters'}
           </Button>
         </Box>
-        {loading && <LinearProgress variant="determinate" value={progress} color="error" sx={{ mt: 3 }} />}
+        {loading && <LinearProgress variant="determinate" value={progress} color="primary" sx={{ mt: 3 }} />}
       </Paper>
 
       {scanned && totalIssues === 0 && (

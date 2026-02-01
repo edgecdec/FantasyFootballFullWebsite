@@ -217,6 +217,19 @@ export default function TrendsPage() {
     }
   };
 
+  // Calculate dynamic counts based on view mode
+  const playerCountsByMode = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    rawHistory.forEach(weekMap => {
+      weekMap.forEach((stats, pid) => {
+        const val = viewMode === 'total' ? stats.total : 
+                    viewMode === 'starter' ? stats.starter : stats.bench;
+        counts.set(pid, (counts.get(pid) || 0) + val);
+      });
+    });
+    return counts;
+  }, [rawHistory, viewMode]);
+
   // Transform Data for Chart
   const chartData = React.useMemo(() => {
     return rawHistory.map((weekMap, index) => {
@@ -316,7 +329,7 @@ export default function TrendsPage() {
               multiple
               options={playerOptions}
               filterOptions={filterOptions}
-              getOptionLabel={(option) => `${option.name} (${option.totalWeeksOwned})`}
+              getOptionLabel={(option) => `${option.name} (${playerCountsByMode.get(option.id) || 0})`}
               value={playerOptions.filter(p => selectedPlayers.includes(p.id))}
               onChange={(_, newValue) => {
                 setSelectedPlayers(newValue.map(p => p.id));
