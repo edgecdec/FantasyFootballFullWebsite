@@ -50,10 +50,12 @@ function getOrdinal(n: number) {
 function determineFinalRank(
   rosterId: number, 
   rosters: SleeperRoster[], 
-  winnersBracket: SleeperBracketMatch[], 
+  winnersBracket: SleeperBracketMatch[],
+  losersBracket: SleeperBracketMatch[],
   league: SleeperLeague
 ): { rank: number, madePlayoffs: boolean } {
   // 1. Check Winners Bracket for Podium Finishes
+  // The championship match usually has p=1
   const championship = winnersBracket.find(m => m.p === 1);
   if (championship) {
     if (championship.w === rosterId) return { rank: 1, madePlayoffs: true };
@@ -72,11 +74,33 @@ function determineFinalRank(
     if (fifthPlace.l === rosterId) return { rank: 6, madePlayoffs: true };
   }
 
-  // 2. Check if they made playoffs (present in any match in the bracket)
+  // 2. Check if they made playoffs (present in any match in the winners bracket)
   const inPlayoffs = winnersBracket.some(m => m.t1 === rosterId || m.t2 === rosterId);
   
-  // 3. Fallback: Regular Season Rank
-  // Sort all rosters by Wins, then Points to determine base rank
+  // 3. Check Losers Bracket (Consolation)
+  // Offset depends on playoff size (default 6 teams)
+  const playoffTeams = league.settings.playoff_teams || 6;
+  const offset = playoffTeams;
+
+  // Find their final placement match in losers bracket
+  // Note: Sleeper uses p=1 for the "winner" of the consolation bracket (7th place)
+  const consolationMatch = losersBracket.find(m => (m.w === rosterId || m.l === rosterId) && m.p);
+  
+  if (consolationMatch && consolationMatch.p) {
+    // If it's a standard consolation bracket (playoff_type 0), Winner gets the better rank (lower number)
+    // p=1 -> Winner is 7th (offset + 1), Loser is 8th (offset + 2)
+    // p=3 -> Winner is 9th (offset + 3), Loser is 10th (offset + 4)
+    
+    // Toilet Bowl (playoff_type 1) might be different, but assuming standard for now.
+    const isWinner = consolationMatch.w === rosterId;
+    const place = consolationMatch.p;
+    
+    if (isWinner) return { rank: offset + place, madePlayoffs: false };
+    return { rank: offset + place + 1, madePlayoffs: false };
+  }
+
+  // 4. Fallback: Regular Season / Consolation Rank logic
+  // If we couldn't find them in a placement match, fall back to roster settings or sort
   const sortedRosters = [...rosters].sort((a, b) => {
     if (a.settings.wins !== b.settings.wins) return b.settings.wins - a.settings.wins;
     return b.settings.fpts - a.settings.fpts;
@@ -84,15 +108,9 @@ function determineFinalRank(
 
   const regSeasonRank = sortedRosters.findIndex(r => r.roster_id === rosterId) + 1;
 
-  // If in playoffs but no specific placement match found (e.g. league stopped early?), 
-  // or if they are 7th-12th, use reg season rank.
-  // Note: This might calculate a "7th" place regular season team as "1st" if they had most wins? 
-  // No, we only override for 1-6 from bracket.
-  
-  // Actually, if someone made playoffs, their rank should logically be better than those who didn't.
-  // But without a placement match, it's ambiguous. 
-  // Ideally we would return regSeasonRank but clamped to >6 if they didn't place? 
-  // No, let's just trust the Bracket for top spots and Reg Season for the rest.
+  // If inPlayoffs is true, we clamp rank to be within playoff size? 
+  // No, if they are in playoffs but lost early and didn't play a placement match (rare), 
+  // we might underestimate them. But usually 5th/6th match exists.
   
   return { rank: regSeasonRank, madePlayoffs: inPlayoffs };
 }
@@ -176,10 +194,13 @@ export default function PerformancePage() {
         const myRoster = rosters.find(r => r.owner_id === userId);
 
         if (myRoster) {
-          // Fetch Bracket
-          const bracket = await SleeperService.getWinnersBracket(league.league_id);
+          // Fetch Brackets
+          const [winnersBracket, losersBracket] = await Promise.all([
+            SleeperService.getWinnersBracket(league.league_id),
+            SleeperService.getLosersBracket(league.league_id)
+          ]);
           
-          const { rank, madePlayoffs } = determineFinalRank(myRoster.roster_id, rosters, bracket, league);
+          const { rank, madePlayoffs } = determineFinalRank(myRoster.roster_id, rosters, winnersBracket, losersBracket, league);
 
           setResults(prev => prev.map(r => r.leagueId === league.league_id ? { 
             ...r, 
