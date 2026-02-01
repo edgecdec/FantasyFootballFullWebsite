@@ -307,6 +307,10 @@ export default function PortfolioPage() {
             </Select>
           </FormControl>
 
+import Link from 'next/link'; // Add this import
+
+// ...
+
           <Button 
             variant="contained" 
             size="large" 
@@ -316,6 +320,16 @@ export default function PortfolioPage() {
           >
             {loading ? 'Analyzing...' : 'Analyze'}
           </Button>
+
+          <Link href="/portfolio/trends" passHref>
+            <Button 
+              variant="outlined" 
+              size="large" 
+              sx={{ height: 56 }}
+            >
+              View Trends
+            </Button>
+          </Link>
         </Box>
 
         {error && (
