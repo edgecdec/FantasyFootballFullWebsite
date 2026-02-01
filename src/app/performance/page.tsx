@@ -107,20 +107,11 @@ function determineFinalRank(
   const totalTeams = rosters.length;
   
   // Auto-detect Bracket Type (Toilet Bowl vs Consolation)
-  // Look at the "Championship" of this bracket (p=1)
-  // If its sources are {w: ...}, it's a Winners Bracket (Consolation). Winner gets Rank 7.
-  // If its sources are {l: ...}, it's a Losers Bracket (Toilet Bowl). Winner gets Rank N-1.
-  const bracketChampionship = losersBracket.find(m => m.p === 1);
-  let isToiletBowl = false;
+  // If ANY match in the bracket comes from a 'loser' source ({l: ...}), it's a Toilet Bowl structure (Loser Advances).
+  let isToiletBowl = losersBracket.some(m => m.t1_from?.l || m.t2_from?.l);
   
-  if (bracketChampionship) {
-    // Check source. If t1_from has 'l' property, it came from a loss.
-    if (bracketChampionship.t1_from?.l || bracketChampionship.t2_from?.l) {
-      isToiletBowl = true;
-    }
-    // Fallback: Check setting
-    if (league.settings.playoff_type === 1) isToiletBowl = true;
-  }
+  // Fallback: Check setting
+  if (league.settings.playoff_type === 1) isToiletBowl = true;
 
   const consolationMatch = losersBracket.find(m => (m.w === rosterId || m.l === rosterId) && m.p);
   
