@@ -113,96 +113,97 @@ function LeagueRow({ item, userId, onToggle }: { item: LeagueData, userId: strin
   const isIncluded = category === 'included';
 
   return (
-    <Accordion 
-      disabled={status !== 'complete'} 
-      sx={{ 
-        mb: 1, 
-        border: '1px solid',
-        borderColor: isIncluded ? 'transparent' : 'action.disabledBackground',
-        opacity: isIncluded ? 1 : 0.75
-      }}
-    >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pr: 2 }}>
-          {/* Action Button */}
-          <Tooltip title={isIncluded ? "Exclude from totals" : "Include in totals"}>
-            <IconButton 
-              size="small" 
-              onClick={(e) => { e.stopPropagation(); onToggle(); }}
-              color={isIncluded ? "error" : "success"}
-              sx={{ mr: 2 }}
-            >
-              {isIncluded ? <RemoveCircleOutlineIcon /> : <AddCircleOutlineIcon />}
-            </IconButton>
-          </Tooltip>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1, opacity: isIncluded ? 1 : 0.75 }}>
+      {/* Action Button - Outside Accordion */}
+      <Tooltip title={isIncluded ? "Exclude from totals" : "Include in totals"}>
+        <IconButton 
+          size="small" 
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          color={isIncluded ? "error" : "success"}
+          sx={{ mt: 1.5, mr: 1 }}
+        >
+          {isIncluded ? <RemoveCircleOutlineIcon /> : <AddCircleOutlineIcon />}
+        </IconButton>
+      </Tooltip>
 
-          <Avatar src={`https://sleepercdn.com/avatars/${league.avatar}`} sx={{ width: 32, height: 32, mr: 2 }} />
-          
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography fontWeight={isIncluded ? "bold" : "normal"}>
-              {league.name}
-            </Typography>
-            {status === 'loading' && <Typography variant="caption" color="primary">Analyzing...</Typography>}
-            {status === 'pending' && <Typography variant="caption" color="text.secondary">Queued</Typography>}
-            {status === 'error' && <Typography variant="caption" color="error">Error</Typography>}
-          </Box>
-
-          {status === 'complete' && stats && (
-            <Box sx={{ textAlign: 'right', display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Box>
-                <Typography variant="caption" display="block" color="text.secondary">Record</Typography>
-                <Typography fontWeight="bold">{stats.actualWins.toFixed(1)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" display="block" color="text.secondary">Exp</Typography>
-                <Typography fontWeight="bold">{stats.expectedWins.toFixed(1)}</Typography>
-              </Box>
-              <Chip 
-                size="small"
-                label={`${(stats.actualWins - stats.expectedWins).toFixed(1)} Luck`}
-                color={stats.actualWins - stats.expectedWins > 0 ? 'success' : 'error'}
-                variant={isIncluded ? "filled" : "outlined"}
-              />
+      <Accordion 
+        disabled={status !== 'complete'} 
+        sx={{ 
+          flexGrow: 1,
+          border: '1px solid',
+          borderColor: isIncluded ? 'transparent' : 'action.disabledBackground',
+        }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pr: 2 }}>
+            <Avatar src={`https://sleepercdn.com/avatars/${league.avatar}`} sx={{ width: 32, height: 32, mr: 2 }} />
+            
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography fontWeight={isIncluded ? "bold" : "normal"}>
+                {league.name}
+              </Typography>
+              {status === 'loading' && <Typography variant="caption" color="primary">Analyzing...</Typography>}
+              {status === 'pending' && <Typography variant="caption" color="text.secondary">Queued</Typography>}
+              {status === 'error' && <Typography variant="caption" color="error">Error</Typography>}
             </Box>
-          )}
-        </Box>
-      </AccordionSummary>
-      
-      <AccordionDetails>
-        {standings && (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Team</TableCell>
-                  <TableCell align="right">Actual</TableCell>
-                  <TableCell align="right">Expected</TableCell>
-                  <TableCell align="right">Diff</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {standings.map((team) => (
-                  <TableRow key={team.rosterId} selected={team.ownerId === userId}>
-                    <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
-                      {team.name}
-                    </TableCell>
-                    <TableCell align="right">{team.actualWins}</TableCell>
-                    <TableCell align="right">{team.expectedWins.toFixed(2)}</TableCell>
-                    <TableCell align="right" sx={{ 
-                      color: team.actualWins - team.expectedWins > 0 ? 'success.main' : 'error.main',
-                      fontWeight: 'bold'
-                    }}>
-                      {(team.actualWins - team.expectedWins).toFixed(2)}
-                    </TableCell>
+
+            {status === 'complete' && stats && (
+              <Box sx={{ textAlign: 'right', display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="caption" display="block" color="text.secondary">Record</Typography>
+                  <Typography fontWeight="bold">{stats.actualWins.toFixed(1)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" display="block" color="text.secondary">Exp</Typography>
+                  <Typography fontWeight="bold">{stats.expectedWins.toFixed(1)}</Typography>
+                </Box>
+                <Chip 
+                  size="small"
+                  label={`${(stats.actualWins - stats.expectedWins).toFixed(1)} Luck`}
+                  color={stats.actualWins - stats.expectedWins > 0 ? 'success' : 'error'}
+                  variant={isIncluded ? "filled" : "outlined"}
+                />
+              </Box>
+            )}
+          </Box>
+        </AccordionSummary>
+        
+        <AccordionDetails>
+          {standings && (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Team</TableCell>
+                    <TableCell align="right">Actual</TableCell>
+                    <TableCell align="right">Expected</TableCell>
+                    <TableCell align="right">Diff</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </AccordionDetails>
-    </Accordion>
+                </TableHead>
+                <TableBody>
+                  {standings.map((team) => (
+                    <TableRow key={team.rosterId} selected={team.ownerId === userId}>
+                      <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
+                        {team.name}
+                      </TableCell>
+                      <TableCell align="right">{team.actualWins}</TableCell>
+                      <TableCell align="right">{team.expectedWins.toFixed(2)}</TableCell>
+                      <TableCell align="right" sx={{ 
+                        color: team.actualWins - team.expectedWins > 0 ? 'success.main' : 'error.main',
+                        fontWeight: 'bold'
+                      }}>
+                        {(team.actualWins - team.expectedWins).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </AccordionDetails>
+      </Accordion>
+    </Box>
   );
 }
 
