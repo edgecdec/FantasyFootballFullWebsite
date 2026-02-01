@@ -1,10 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { Container, Typography, Chip, Box } from '@mui/material';
+import { Container, Typography, Chip } from '@mui/material';
 import { Player } from '@/types/player';
-import PlayerFilterBar from '@/components/players/PlayerFilterBar';
-import DataTable, { Column } from '@/components/common/DataTable';
+import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
 import playerData from '../../../data/sleeper_players.json';
 
 // --- Data Preparation ---
@@ -22,30 +21,13 @@ const ALL_PLAYERS: Player[] = Object.values(playerData.players)
     stats: p.stats || null
   }));
 
+// Pre-calculate teams list just in case, though SmartTable can auto-derive
 const TEAMS = Array.from(new Set(ALL_PLAYERS.map(p => p.team).filter(t => t && t !== 'FA'))).sort() as string[];
 
 export default function PlayersPage() {
-  // Filter State
-  const [filterName, setFilterName] = React.useState('');
-  const [filterPos, setFilterPos] = React.useState<string[]>([]);
-  const [filterTeam, setFilterTeam] = React.useState<string[]>([]);
-
-  // Filter Logic
-  const filteredPlayers = React.useMemo(() => {
-    return ALL_PLAYERS.filter(player => {
-      const matchesName = 
-        player.first_name.toLowerCase().includes(filterName.toLowerCase()) || 
-        player.last_name.toLowerCase().includes(filterName.toLowerCase());
-      
-      const matchesPos = filterPos.length === 0 || filterPos.includes(player.position);
-      const matchesTeam = filterTeam.length === 0 || (player.team && filterTeam.includes(player.team));
-
-      return matchesName && matchesPos && matchesTeam;
-    });
-  }, [filterName, filterPos, filterTeam]);
-
+  
   // Column Definition
-  const columns: Column<Player>[] = [
+  const columns: SmartColumn<Player>[] = [
     { 
       id: 'last_name', 
       label: 'Name', 
@@ -58,6 +40,8 @@ export default function PlayersPage() {
     { 
       id: 'position', 
       label: 'Pos', 
+      filterVariant: 'multi-select',
+      filterOptions: ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'],
       render: (p) => (
         <Chip 
           label={p.position} 
@@ -72,7 +56,12 @@ export default function PlayersPage() {
         />
       )
     },
-    { id: 'team', label: 'Team' },
+    { 
+      id: 'team', 
+      label: 'Team',
+      filterVariant: 'multi-select',
+      filterOptions: TEAMS 
+    },
     { 
       id: 'stats.pts_std', 
       label: 'Std Pts', 
@@ -109,18 +98,8 @@ export default function PlayersPage() {
         Player Database & Stats (2025)
       </Typography>
       
-      <PlayerFilterBar
-        filterName={filterName}
-        setFilterName={setFilterName}
-        filterPos={filterPos}
-        setFilterPos={setFilterPos}
-        filterTeam={filterTeam}
-        setFilterTeam={setFilterTeam}
-        teamsList={TEAMS}
-      />
-
-      <DataTable
-        data={filteredPlayers}
+      <SmartTable
+        data={ALL_PLAYERS}
         columns={columns}
         keyField="player_id"
         defaultSortBy="stats.pts_half_ppr"

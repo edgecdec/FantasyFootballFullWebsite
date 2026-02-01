@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import { SleeperService, SleeperUser } from '@/services/sleeper/sleeperService';
 import playerData from '../../../data/sleeper_players.json';
-import DataTable, { Column } from '@/components/common/DataTable';
+import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
 
 // Types
 type PortfolioItem = {
@@ -133,7 +133,7 @@ export default function PortfolioPage() {
   };
 
   // Define Columns
-  const columns: Column<PortfolioItem>[] = [
+  const columns: SmartColumn<PortfolioItem>[] = [
     { 
       id: 'playerData.last_name', 
       label: 'Player', 
@@ -146,6 +146,7 @@ export default function PortfolioPage() {
     { 
       id: 'playerData.position', 
       label: 'Position', 
+      filterVariant: 'multi-select', // Auto-filter!
       render: (item) => (
         <Chip 
           label={item.playerData.position} 
@@ -159,7 +160,11 @@ export default function PortfolioPage() {
         />
       )
     },
-    { id: 'playerData.team', label: 'Team' },
+    { 
+      id: 'playerData.team', 
+      label: 'Team',
+      filterVariant: 'multi-select' // Auto-filter!
+    },
     { 
       id: 'shares', 
       label: 'Shares', 
@@ -260,14 +265,13 @@ export default function PortfolioPage() {
             </Box>
           </Box>
 
-          <DataTable
+          <SmartTable
             data={portfolio}
             columns={columns}
             keyField="playerId"
             defaultSortBy="shares"
             defaultSortOrder="desc"
             defaultRowsPerPage={25}
-            noDataMessage="No players found in your rosters."
           />
         </>
       )}
