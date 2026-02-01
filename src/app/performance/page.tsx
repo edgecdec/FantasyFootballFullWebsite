@@ -25,7 +25,13 @@ import {
   Divider,
   IconButton,
   Tooltip,
-  Link as MuiLink
+  Link as MuiLink,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -103,7 +109,6 @@ function determineFinalRank(
   if (consolationMatch && consolationMatch.p) {
     const isWinner = consolationMatch.w === rosterId;
     const place = consolationMatch.p;
-    // Assuming standard consolation: Winner gets better rank
     if (isWinner) return { rank: offset + place, madePlayoffs: false };
     return { rank: offset + place + 1, madePlayoffs: false };
   }
@@ -134,20 +139,20 @@ function SummaryCard({ data }: { data: LeaguePerformanceData[] }) {
     <Card sx={{ mb: 4, bgcolor: 'secondary.dark', color: 'white' }}>
       <CardContent>
         <Grid container spacing={4} textAlign="center">
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <Typography variant="h6" color="secondary.light">Avg Percentile</Typography>
             <Typography variant="h3" fontWeight="bold">{avgPercentile.toFixed(0)}%</Typography>
             <Typography variant="caption">Avg Finish: {avgFinish.toFixed(1)}</Typography>
           </Grid>
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <Typography variant="h6" color="secondary.light">Golds 🥇</Typography>
             <Typography variant="h3" fontWeight="bold">{championships}</Typography>
           </Grid>
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <Typography variant="h6" color="secondary.light">Podiums 🏆</Typography>
             <Typography variant="h3" fontWeight="bold">{podiums}</Typography>
           </Grid>
-          <Grid item xs={6} md={3}>
+          <Grid size={{ xs: 6, md: 3 }}>
             <Typography variant="h6" color="secondary.light">Playoffs</Typography>
             <Typography variant="h3" fontWeight="bold">{playoffRate.toFixed(0)}%</Typography>
           </Grid>
@@ -469,7 +474,7 @@ export default function PerformancePage() {
           <Typography variant="h6" gutterBottom color="primary">Included Leagues</Typography>
           <Grid container spacing={2}>
             {leagueData.filter(d => d.category === 'included').map(item => (
-              <Grid item xs={12} md={6} key={item.league.league_id}>
+              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
                 <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} />
               </Grid>
             ))}
@@ -482,7 +487,7 @@ export default function PerformancePage() {
           <Divider sx={{ mb: 2 }} >Excluded Leagues</Divider>
           <Grid container spacing={2}>
             {leagueData.filter(d => d.category === 'excluded').map(item => (
-              <Grid item xs={12} md={6} key={item.league.league_id}>
+              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
                 <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} />
               </Grid>
             ))}
