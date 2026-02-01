@@ -212,6 +212,7 @@ export default function ExpectedWinsPage() {
     // 2. Process Weeks
     const playoffStart = league.settings.playoff_week_start || 15;
     const weeksToAnalyze = playoffStart - 1;
+    const useMedian = league.settings.league_average_match === 1;
 
     // We can batch fetch these in parallel chunks of 4 weeks to speed up without killing API
     const weeks = Array.from({length: weeksToAnalyze}, (_, i) => i + 1);
@@ -227,16 +228,38 @@ export default function ExpectedWinsPage() {
             const totalTeams = validMatchups.length;
             if (totalTeams < 2) return;
 
+            // Sort for Median Calculation
+            // Sleeper Median: Top half gets a win. (e.g. 12 teams -> Top 6)
+            const sortedByScore = [...validMatchups].sort((a, b) => b.points - a.points);
+            const medianCutoffIndex = Math.floor(totalTeams / 2);
+            // Example: 10 teams. Half is 5. Index 0-4 are top 5. Index 4 is the cutoff score.
+            // If strictly greater than index 5? Sleeper usually just takes top N.
+            const medianThreshold = sortedByScore[medianCutoffIndex - 1]?.points || 0;
+
             validMatchups.forEach(m1 => {
+                // 1. H2H Expected Wins (All-Play)
                 let wins = 0;
                 validMatchups.forEach(m2 => {
                     if (m1.roster_id === m2.roster_id) return;
                     if (m1.points > m2.points) wins += 1;
                     if (m1.points === m2.points) wins += 0.5;
                 });
-                const ew = wins / (totalTeams - 1);
+                const h2hEw = wins / (totalTeams - 1);
+                
+                // 2. Median Expected Win
+                let medianEw = 0;
+                if (useMedian) {
+                    // Logic: If you are in the top half, you 'Expect' a win.
+                    // We check if this team is in the top half.
+                    // Note: Handling ties at the median boundary is complex in Sleeper, 
+                    // generally all tied for last spot get the win.
+                    if (m1.points >= medianThreshold && m1.points > 0) {
+                        medianEw = 1;
+                    }
+                }
+
                 const t = rosterMap.get(m1.roster_id);
-                if (t) t.expectedWins += ew;
+                if (t) t.expectedWins += (h2hEw + medianEw);
             });
         }));
     }
