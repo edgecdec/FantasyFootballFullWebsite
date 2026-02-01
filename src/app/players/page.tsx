@@ -1,21 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { 
-  Container, 
-  Typography, 
-  TablePagination,
-} from '@mui/material';
-
-// Import Types and Components
-import { Player, PlayerStats, Order } from '@/types/player';
-import PlayerTable from '@/components/players/PlayerTable';
+import { Container, Typography, Chip, Box } from '@mui/material';
+import { Player } from '@/types/player';
 import PlayerFilterBar from '@/components/players/PlayerFilterBar';
-
-// Import JSON data
+import DataTable, { Column } from '@/components/common/DataTable';
 import playerData from '../../../data/sleeper_players.json';
 
-// 1. Process data on load
+// --- Data Preparation ---
 const ALL_PLAYERS: Player[] = Object.values(playerData.players)
   .filter((p: any) => p.position && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(p.position))
   .map((p: any) => ({
@@ -30,66 +22,15 @@ const ALL_PLAYERS: Player[] = Object.values(playerData.players)
     stats: p.stats || null
   }));
 
-// Extract unique teams for dropdown
 const TEAMS = Array.from(new Set(ALL_PLAYERS.map(p => p.team).filter(t => t && t !== 'FA'))).sort() as string[];
 
-// Sorting Helper
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T | string) {
-  let aValue: any;
-  let bValue: any;
-
-  // Handle nested stats sorting
-  if (typeof orderBy === 'string' && orderBy.startsWith('stats.')) {
-    const statKey = orderBy.split('.')[1] as keyof PlayerStats;
-    aValue = (a as any).stats?.[statKey] ?? -9999;
-    bValue = (b as any).stats?.[statKey] ?? -9999;
-  } else {
-    aValue = (a as any)[orderBy] ?? '';
-    bValue = (b as any)[orderBy] ?? '';
-    if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-    if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-  }
-
-  if (bValue < aValue) return -1;
-  if (bValue > aValue) return 1;
-  return 0;
-}
-
-function getComparator<Key extends keyof any>(
-  order: Order,
-  orderBy: Key,
-): (a: any, b: any) => number {
-  return order === 'desc'
-    ? (a, b) => descendingComparator(a, b, orderBy as string)
-    : (a, b) => -descendingComparator(a, b, orderBy as string);
-}
-
 export default function PlayersPage() {
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(25);
-  
   // Filter State
   const [filterName, setFilterName] = React.useState('');
   const [filterPos, setFilterPos] = React.useState<string[]>([]);
   const [filterTeam, setFilterTeam] = React.useState<string[]>([]);
-  
-  // Sorting State
-  const [order, setOrder] = React.useState<Order>('desc');
-  const [orderBy, setOrderBy] = React.useState<string>('stats.pts_half_ppr');
 
-  const handleRequestSort = (property: string) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
-
-  // Reset page when filters change
-  const handleFilterChange = (setter: any) => (value: any) => {
-    setter(value);
-    setPage(0);
-  };
-
-  // 1. Filter
+  // Filter Logic
   const filteredPlayers = React.useMemo(() => {
     return ALL_PLAYERS.filter(player => {
       const matchesName = 
@@ -103,11 +44,64 @@ export default function PlayersPage() {
     });
   }, [filterName, filterPos, filterTeam]);
 
-  // 2. Sort & Paginate
-  const visibleRows = React.useMemo(() => {
-    const sorted = [...filteredPlayers].sort(getComparator(order, orderBy));
-    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [filteredPlayers, order, orderBy, page, rowsPerPage]);
+  // Column Definition
+  const columns: Column<Player>[] = [
+    { 
+      id: 'last_name', 
+      label: 'Name', 
+      render: (p) => (
+        <Typography variant="body2" fontWeight="medium">
+          {p.first_name} {p.last_name}
+        </Typography>
+      )
+    },
+    { 
+      id: 'position', 
+      label: 'Pos', 
+      render: (p) => (
+        <Chip 
+          label={p.position} 
+          size="small" 
+          variant="outlined"
+          color={
+            p.position === 'QB' ? 'error' :
+            p.position === 'RB' ? 'success' :
+            p.position === 'WR' ? 'info' :
+            p.position === 'TE' ? 'warning' : 'default'
+          }
+        />
+      )
+    },
+    { id: 'team', label: 'Team' },
+    { 
+      id: 'stats.pts_std', 
+      label: 'Std Pts', 
+      numeric: true, 
+      render: (p) => p.stats?.pts_std?.toFixed(1) || '-' 
+    },
+    { 
+      id: 'stats.pts_half_ppr', 
+      label: 'Half PPR', 
+      numeric: true, 
+      render: (p) => (
+        <Typography fontWeight="bold" color="primary.main">
+          {p.stats?.pts_half_ppr?.toFixed(1) || '-'}
+        </Typography>
+      )
+    },
+    { 
+      id: 'stats.pts_ppr', 
+      label: 'PPR Pts', 
+      numeric: true, 
+      render: (p) => p.stats?.pts_ppr?.toFixed(1) || '-' 
+    },
+    { 
+      id: 'stats.gp', 
+      label: 'GP', 
+      numeric: true, 
+      render: (p) => p.stats?.gp || '-' 
+    },
+  ];
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -117,32 +111,21 @@ export default function PlayersPage() {
       
       <PlayerFilterBar
         filterName={filterName}
-        setFilterName={handleFilterChange(setFilterName)}
+        setFilterName={setFilterName}
         filterPos={filterPos}
-        setFilterPos={handleFilterChange(setFilterPos)}
+        setFilterPos={setFilterPos}
         filterTeam={filterTeam}
-        setFilterTeam={handleFilterChange(setFilterTeam)}
+        setFilterTeam={setFilterTeam}
         teamsList={TEAMS}
       />
 
-      <PlayerTable
-        players={visibleRows}
-        order={order}
-        orderBy={orderBy}
-        onRequestSort={handleRequestSort}
-      />
-      
-      <TablePagination
-        rowsPerPageOptions={[25, 50, 100]}
-        component="div"
-        count={filteredPlayers.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={(e, newPage) => setPage(newPage)}
-        onRowsPerPageChange={(e) => {
-          setRowsPerPage(parseInt(e.target.value, 10));
-          setPage(0);
-        }}
+      <DataTable
+        data={filteredPlayers}
+        columns={columns}
+        keyField="player_id"
+        defaultSortBy="stats.pts_half_ppr"
+        defaultSortOrder="desc"
+        defaultRowsPerPage={25}
       />
     </Container>
   );

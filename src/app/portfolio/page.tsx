@@ -9,23 +9,17 @@ import {
   Button,
   Paper,
   LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   Alert,
   Avatar,
   Select,
   MenuItem,
   InputLabel,
-  FormControl,
-  TableSortLabel
+  FormControl
 } from '@mui/material';
 import { SleeperService, SleeperUser } from '@/services/sleeper/sleeperService';
 import playerData from '../../../data/sleeper_players.json';
+import DataTable, { Column } from '@/components/common/DataTable';
 
 // Types
 type PortfolioItem = {
@@ -34,53 +28,14 @@ type PortfolioItem = {
   shares: number;
   startersCount: number;
   benchCount: number;
-  exposure: number; // calculated field for easier sorting
+  exposure: number;
   leagues: {
     id: string;
     name: string;
   }[];
 };
 
-type Order = 'asc' | 'desc';
-
-// Headers Configuration
-const HEAD_CELLS = [
-  { id: 'playerData.last_name', label: 'Player', numeric: false },
-  { id: 'playerData.position', label: 'Position', numeric: false },
-  { id: 'playerData.team', label: 'Team', numeric: false },
-  { id: 'shares', label: 'Shares', numeric: true },
-  { id: 'startersCount', label: 'Start', numeric: true },
-  { id: 'benchCount', label: 'Bench', numeric: true },
-  { id: 'exposure', label: 'Exposure', numeric: true },
-];
-
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T | string) {
-  let aValue: any;
-  let bValue: any;
-
-  // Handle nested sorting
-  if (orderBy.startsWith('playerData.')) {
-    const key = orderBy.split('.')[1];
-    aValue = (a as any).playerData[key] ?? '';
-    bValue = (b as any).playerData[key] ?? '';
-  } else {
-    aValue = (a as any)[orderBy] ?? 0;
-    bValue = (b as any)[orderBy] ?? 0;
-  }
-
-  if (bValue < aValue) return -1;
-  if (bValue > aValue) return 1;
-  return 0;
-}
-
-function getComparator<Key extends keyof any>(
-  order: Order,
-  orderBy: Key,
-): (a: any, b: any) => number {
-  return order === 'desc'
-    ? (a, b) => descendingComparator(a, b, orderBy as string)
-    : (a, b) => -descendingComparator(a, b, orderBy as string);
-}
+const YEARS = ['2025', '2024', '2023', '2022', '2021', '2020'];
 
 export default function PortfolioPage() {
   // State
@@ -94,28 +49,12 @@ export default function PortfolioPage() {
   const [portfolio, setPortfolio] = React.useState<PortfolioItem[]>([]);
   const [totalLeagues, setTotalLeagues] = React.useState(0);
 
-  // Sorting
-  const [order, setOrder] = React.useState<Order>('desc');
-  const [orderBy, setOrderBy] = React.useState<string>('shares');
-
-  const handleRequestSort = (property: string) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
-
   // Auto-analyze when year changes
   React.useEffect(() => {
     if (username && !loading) {
       handleAnalyze();
     }
   }, [year]);
-
-  const sortedPortfolio = React.useMemo(() => {
-    return [...portfolio].sort(getComparator(order, orderBy));
-  }, [portfolio, order, orderBy]);
-
-  const YEARS = ['2025', '2024', '2023', '2022', '2021', '2020'];
 
   const handleAnalyze = async () => {
     if (!username) return;
@@ -184,8 +123,6 @@ export default function PortfolioPage() {
         }
       });
 
-      // Initial sort by shares
-      items.sort((a, b) => b.shares - a.shares);
       setPortfolio(items);
 
     } catch (err: any) {
@@ -194,6 +131,60 @@ export default function PortfolioPage() {
       setLoading(false);
     }
   };
+
+  // Define Columns
+  const columns: Column<PortfolioItem>[] = [
+    { 
+      id: 'playerData.last_name', 
+      label: 'Player', 
+      render: (item) => (
+        <Typography fontWeight="bold">
+          {item.playerData.first_name} {item.playerData.last_name}
+        </Typography>
+      )
+    },
+    { 
+      id: 'playerData.position', 
+      label: 'Position', 
+      render: (item) => (
+        <Chip 
+          label={item.playerData.position} 
+          size="small"
+          color={
+            item.playerData.position === 'QB' ? 'error' :
+            item.playerData.position === 'RB' ? 'success' :
+            item.playerData.position === 'WR' ? 'info' :
+            item.playerData.position === 'TE' ? 'warning' : 'default'
+          } 
+        />
+      )
+    },
+    { id: 'playerData.team', label: 'Team' },
+    { 
+      id: 'shares', 
+      label: 'Shares', 
+      numeric: true,
+      render: (item) => <Typography fontWeight="bold" fontSize="1.1rem">{item.shares}</Typography>
+    },
+    { 
+      id: 'startersCount', 
+      label: 'Start', 
+      numeric: true,
+      render: (item) => <Typography color="success.main" fontWeight="bold">{item.startersCount}</Typography>
+    },
+    { 
+      id: 'benchCount', 
+      label: 'Bench', 
+      numeric: true,
+      render: (item) => <Typography color="text.secondary">{item.benchCount}</Typography>
+    },
+    { 
+      id: 'exposure', 
+      label: 'Exposure', 
+      numeric: true,
+      render: (item) => `${item.exposure.toFixed(0)}%`
+    },
+  ];
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -204,6 +195,7 @@ export default function PortfolioPage() {
         Analyze your exposure across all your Sleeper leagues.
       </Typography>
 
+      {/* Input Section */}
       <Paper sx={{ p: 3, mb: 4 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
@@ -213,12 +205,19 @@ export default function PortfolioPage() {
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}
           />
+          
           <FormControl sx={{ minWidth: 100 }}>
             <InputLabel>Year</InputLabel>
-            <Select value={year} label="Year" onChange={(e) => setYear(e.target.value)} disabled={loading}>
+            <Select
+              value={year}
+              label="Year"
+              onChange={(e) => setYear(e.target.value)}
+              disabled={loading}
+            >
               {YEARS.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
             </Select>
           </FormControl>
+
           <Button 
             variant="contained" 
             size="large" 
@@ -229,9 +228,13 @@ export default function PortfolioPage() {
             {loading ? 'Analyzing...' : 'Analyze Portfolio'}
           </Button>
         </Box>
-        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+        )}
       </Paper>
 
+      {/* Loading State */}
       {loading && (
         <Box sx={{ width: '100%', mb: 4 }}>
           <Typography variant="body2" gutterBottom>
@@ -241,6 +244,7 @@ export default function PortfolioPage() {
         </Box>
       )}
 
+      {/* Results */}
       {user && !loading && (
         <>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -256,71 +260,15 @@ export default function PortfolioPage() {
             </Box>
           </Box>
 
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'background.default' }}>
-                  {HEAD_CELLS.map((headCell) => (
-                    <TableCell
-                      key={headCell.id}
-                      align={headCell.numeric ? 'right' : 'left'}
-                      sortDirection={orderBy === headCell.id ? order : false}
-                      sx={{ fontWeight: 'bold' }}
-                    >
-                      <TableSortLabel
-                        active={orderBy === headCell.id}
-                        direction={orderBy === headCell.id ? order : 'asc'}
-                        onClick={() => handleRequestSort(headCell.id)}
-                      >
-                        {headCell.label}
-                      </TableSortLabel>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sortedPortfolio.map((item) => (
-                  <TableRow key={item.playerId} hover>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      {item.playerData.first_name} {item.playerData.last_name}
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={item.playerData.position} 
-                        size="small"
-                        color={
-                          item.playerData.position === 'QB' ? 'error' :
-                          item.playerData.position === 'RB' ? 'success' :
-                          item.playerData.position === 'WR' ? 'info' :
-                          item.playerData.position === 'TE' ? 'warning' : 'default'
-                        } 
-                      />
-                    </TableCell>
-                    <TableCell>{item.playerData.team || 'FA'}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-                      {item.shares}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'success.main', fontWeight: 'bold' }}>
-                      {item.startersCount}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                      {item.benchCount}
-                    </TableCell>
-                    <TableCell align="right">
-                      {item.exposure.toFixed(0)}%
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {portfolio.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      No players found in your rosters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable
+            data={portfolio}
+            columns={columns}
+            keyField="playerId"
+            defaultSortBy="shares"
+            defaultSortOrder="desc"
+            defaultRowsPerPage={25}
+            noDataMessage="No players found in your rosters."
+          />
         </>
       )}
     </Container>
