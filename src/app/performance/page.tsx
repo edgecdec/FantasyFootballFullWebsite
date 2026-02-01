@@ -125,25 +125,28 @@ function determineFinalRank(
       // p=3 Match: Determines 9th/10th.
       // p=5 Match: Determines 7th/8th (Best of the losers).
       
-      // In Toilet Bowl API, 'w' is the team that "Won the Bracket Node" (Advanced).
-      // But in a Toilet Bowl, Advancing means LOSING the football game (Scoring Less).
-      // So 'w' = Score Loser = Worse Rank.
+      // In Toilet Bowl API, 'w' = Score Loser = Worse Rank.
       // 'l' = Score Winner = Better Rank.
       
-      const isBracketWinner = consolationMatch.w === rosterId; // API says we are 'w'
+      const isBracketWinner = consolationMatch.w === rosterId; // API says we are 'w' (Loser of points)
       
-      if (place === 1) { // 11th/12th
-        return { rank: isBracketWinner ? 12 : 11, madePlayoffs: false, source: 'loser_bracket' };
-      }
-      if (place === 3) { // 9th/10th
-        return { rank: isBracketWinner ? 10 : 9, madePlayoffs: false, source: 'loser_bracket' };
-      }
-      if (place === 5) { // 7th/8th
-        return { rank: isBracketWinner ? 8 : 7, madePlayoffs: false, source: 'loser_bracket' };
-      }
+      // Dynamic Rank Calculation based on Total Teams
+      // p=1 (Finals) -> The Bottom 2 spots (Total and Total-1)
+      // p=3 (3rd Place) -> The Next 2 spots (Total-2 and Total-3)
+      // p=5 (5th Place) -> The Next 2 spots (Total-4 and Total-5)
       
-      // Fallback
-      return { rank: isBracketWinner ? 12 : 11, madePlayoffs: false, source: 'loser_bracket' };
+      // Calculate the "Base Rank" for this match's tier
+      // p=1 -> Base = Total
+      // p=3 -> Base = Total - 2
+      // p=5 -> Base = Total - 4
+      const baseRank = totalTeams - (place - 1);
+      
+      // If we are 'w' (Worse Rank), we take baseRank (e.g. 12).
+      // If we are 'l' (Better Rank), we take baseRank - 1 (e.g. 11).
+      
+      const rank = isBracketWinner ? baseRank : baseRank - 1;
+      
+      return { rank, madePlayoffs: false, source: 'loser_bracket' };
       
     } else {
       // Consolation Logic (Winner Advances)
