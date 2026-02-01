@@ -32,7 +32,8 @@ import {
   IconButton,
   Tooltip,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  Link as MuiLink
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -72,13 +73,13 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
   // Only sum up INCLUDED and COMPLETE leagues
   const active = data.filter(d => d.category === 'included' && d.status === 'complete');
   
-  const totalActual = active.reduce((sum, d) => sum + (d.stats?.actualWins || 0), 0);
-  const totalExpected = active.reduce((sum, d) => sum + (d.stats?.expectedWins || 0), 0);
+  const totalActual = active.reduce((sum, d) => sum + (d.userStats?.actualWins || 0), 0);
+  const totalExpected = active.reduce((sum, d) => sum + (d.userStats?.expectedWins || 0), 0);
   const diff = totalActual - totalExpected;
 
   // Advanced Stats
-  const totalPF = active.reduce((sum, d) => sum + (d.stats?.pointsFor || 0), 0);
-  const totalPA = active.reduce((sum, d) => sum + (d.stats?.pointsAgainst || 0), 0);
+  const totalPF = active.reduce((sum, d) => sum + (d.userStats?.pointsFor || 0), 0);
+  const totalPA = active.reduce((sum, d) => sum + (d.userStats?.pointsAgainst || 0), 0);
   const pointsDiff = totalPF - totalPA;
 
   const approxGames = active.length * 14; 
@@ -142,7 +143,7 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
 }
 
 function LeagueRow({ item, userId, onToggle, showAdvanced }: { item: LeagueData, userId: string, onToggle: () => void, showAdvanced: boolean }) {
-  const { league, status, stats, standings, category } = item;
+  const { league, status, userStats: stats, standings, category } = item;
   const isIncluded = category === 'included';
 
   return (
@@ -171,11 +172,7 @@ function LeagueRow({ item, userId, onToggle, showAdvanced }: { item: LeagueData,
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pr: 2 }}>
             <Avatar src={`https://sleepercdn.com/avatars/${league.avatar}`} sx={{ width: 32, height: 32, mr: 2 }} />
             
-import { Link as MuiLink } from '@mui/material'; 
-// Ensure MuiLink is imported if not already, or add it to the import list at the top.
-
-// ... inside LeagueRow component ...
-
+            
             <Box sx={{ flexGrow: 1 }}>
               <MuiLink
                 href={`https://sleeper.com/leagues/${league.league_id}`}

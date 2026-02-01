@@ -27,8 +27,10 @@ export type SleeperRoster = {
   roster_id: number;
   owner_id: string;
   league_id: string;
-  players: string[] | null; // Array of player IDs
+  players: string[] | null; 
   starters: string[] | null;
+  reserve?: string[] | null; // IR
+  taxi?: string[] | null; // Taxi Squad
   settings: {
     wins: number;
     losses: number;

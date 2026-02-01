@@ -102,7 +102,7 @@ export default function HomePage() {
           { title: 'Expected Wins', desc: 'Calculate your luck with All-Play win rates.', href: '/expected-wins', cta: 'Analyze Luck' },
           { title: 'Player Database', desc: 'Search and filter all active NFL players.', href: '/players', cta: 'Search Players' },
         ].map((feature) => (
-          <Grid item xs={12} sm={6} md={4} key={feature.title}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={feature.title}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant="h5" component="div">
