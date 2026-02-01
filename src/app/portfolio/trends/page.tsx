@@ -10,7 +10,11 @@ import {
   Autocomplete,
   TextField,
   Button,
-  createFilterOptions
+  createFilterOptions,
+  ToggleButton,
+  ToggleButtonGroup,
+  Chip,
+  Stack
 } from '@mui/material';
 import { 
   LineChart, 
@@ -28,9 +32,17 @@ import playerData from '../../../../data/sleeper_players.json';
 import PageHeader from '@/components/common/PageHeader';
 
 // --- Types ---
-type WeeklyData = {
-  week: number;
-  [playerId: string]: number; // dynamic keys for player counts
+type WeeklyStats = {
+  total: number;
+  starter: number;
+  bench: number;
+};
+
+type PlayerMeta = {
+  id: string;
+  name: string;
+  position: string;
+  totalWeeksOwned: number;
 };
 
 // Colors for lines
@@ -44,18 +56,52 @@ const filterOptions = createFilterOptions({
   limit: 50,
 });
 
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    // 1. Filter out 0 values
+    // 2. Sort by value descending
+    const filteredAndSorted = payload
+      .filter((entry: any) => entry.value > 0)
+      .sort((a: any, b: any) => b.value - a.value);
+
+    if (filteredAndSorted.length === 0) return null;
+
+    return (
+      <Paper sx={{ p: 1.5, bgcolor: 'rgba(20, 20, 20, 0.95)', border: '1px solid #333', minWidth: 200 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, color: '#fff' }}>Week {label}</Typography>
+        {filteredAndSorted.map((entry: any) => (
+          <Box key={entry.dataKey} sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: entry.color, fontWeight: 'medium' }}>
+              {entry.name}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#fff', fontWeight: 'bold' }}>
+              {entry.value}
+            </Typography>
+          </Box>
+        ))}
+      </Paper>
+    );
+  }
+  return null;
+};
+
 export default function TrendsPage() {
   const { user } = useUser();
   const [year, setYear] = React.useState('2025');
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
   
-  // Data Store: Map<Week, Map<PlayerId, Count>>
-  const [history, setHistory] = React.useState<WeeklyData[]>([]);
+  // Raw Data: Array of Maps (Index 0 = Week 1)
+  // Each Map: PlayerId -> { total, starter, bench }
+  const [rawHistory, setRawHistory] = React.useState<Map<string, WeeklyStats>[]>([]);
   
   // Selection
   const [selectedPlayers, setSelectedPlayers] = React.useState<string[]>([]);
-  const [availablePlayers, setAvailablePlayers] = React.useState<{id: string, name: string}[]>([]);
+  const [playerOptions, setPlayerOptions] = React.useState<PlayerMeta[]>([]);
+  
+  // Controls
+  const [viewMode, setViewMode] = React.useState<'total' | 'starter' | 'bench'>('total');
 
   // Helpers
   const getPlayerName = (id: string) => {
@@ -63,9 +109,14 @@ export default function TrendsPage() {
     return p ? `${p.first_name} ${p.last_name}` : id;
   };
 
-  // Auto-run when user is loaded
+  const getPlayerPosition = (id: string) => {
+    const p = (playerData.players as any)[id];
+    return p ? p.position : '??';
+  };
+
+  // Auto-run
   React.useEffect(() => {
-    if (user && !loading && history.length === 0) {
+    if (user && !loading && rawHistory.length === 0) {
       startAnalysis();
     }
   }, [user]);
@@ -74,89 +125,89 @@ export default function TrendsPage() {
     if (!user) return;
     setLoading(true);
     setProgress(0);
-    setHistory([]);
+    setRawHistory([]);
+    setPlayerOptions([]);
 
     try {
-      // 1. Get Leagues
       const leagues = await SleeperService.getLeagues(user.user_id, year);
       if (leagues.length === 0) {
         setLoading(false);
         return;
       }
 
-      // 2. Fetch Rosters (to get mapping of Owner -> Roster ID)
-      // We assume roster IDs mostly don't change, though technically they can in dynasty.
-      // For trends, we'll map User -> Roster ID per league.
       const rosterMap = await SleeperService.fetchAllRosters(
         leagues, 
         user.user_id, 
-        (c, t) => setProgress((c/t) * 10) // First 10%
+        (c, t) => setProgress((c/t) * 10)
       );
 
-      // Create a lookup: LeagueID -> MyRosterID
       const myRosterIds = new Map<string, number>();
       leagues.forEach(l => {
         const r = rosterMap.get(l.league_id);
         if (r) myRosterIds.set(l.league_id, r.roster_id);
       });
 
-      // 3. Fetch Weeks 1-18
       const WEEKS = Array.from({length: 18}, (_, i) => i + 1);
-      const tempHistory: WeeklyData[] = [];
-      const playersSet = new Set<string>();
+      const newRawHistory: Map<string, WeeklyStats>[] = [];
+      const globalPlayerCounts = new Map<string, number>(); // PlayerID -> Total Weeks Owned
 
-      // We fetch one week at a time to update UI progressively
       for (let i = 0; i < WEEKS.length; i++) {
         const week = WEEKS[i];
+        const weekData = new Map<string, WeeklyStats>();
         
-        // Fetch matchups for all leagues for this week
         const weekMatchups = await SleeperService.fetchAllMatchups(
           leagues,
           week,
           (c, t) => {
-            // Progress logic: We have 18 weeks. Each week is ~5% of total.
-            // (i / 18) * 90 + (c/t * (1/18) * 90) + 10
             const base = 10 + (i / 18) * 90;
             const step = (c / t) * (90 / 18);
             setProgress(base + step);
           }
         );
 
-        // Aggregate counts for this week
-        const weekData: WeeklyData = { week };
-        
         weekMatchups.forEach((matchups, leagueId) => {
           const myRid = myRosterIds.get(leagueId);
           if (!myRid) return;
 
           const myMatchup = matchups.find(m => m.roster_id === myRid);
           if (myMatchup && myMatchup.players) {
+            const startersSet = new Set(myMatchup.starters || []);
+            
             myMatchup.players.forEach(pid => {
-              weekData[pid] = (weekData[pid] || 0) + 1;
-              playersSet.add(pid);
+              const current = weekData.get(pid) || { total: 0, starter: 0, bench: 0 };
+              current.total++;
+              if (startersSet.has(pid)) current.starter++;
+              else current.bench++;
+              weekData.set(pid, current);
+
+              // Update global counts
+              const globalCount = globalPlayerCounts.get(pid) || 0;
+              globalPlayerCounts.set(pid, globalCount + 1);
             });
           }
         });
 
-        tempHistory.push(weekData);
-        // Live update the chart data
-        setHistory([...tempHistory]);
+        newRawHistory.push(weekData);
+        // We can't update state incrementally easily with this structure without causing flicker/re-calc
+        // We'll update at end or in chunks if needed. For now, let's update at end for smoothness.
       }
 
-      // Populate autocomplete list
-      const playerOptions = Array.from(playersSet).map(id => ({
-        id,
-        name: getPlayerName(id)
-      })).sort((a, b) => a.name.localeCompare(b.name));
+      setRawHistory(newRawHistory);
+
+      // Build Options List
+      const options: PlayerMeta[] = Array.from(globalPlayerCounts.entries())
+        .map(([id, count]) => ({
+          id,
+          name: getPlayerName(id),
+          position: getPlayerPosition(id),
+          totalWeeksOwned: count
+        }))
+        .sort((a, b) => b.totalWeeksOwned - a.totalWeeksOwned);
       
-      setAvailablePlayers(playerOptions);
+      setPlayerOptions(options);
       
-      // Default select top 3 most owned players in final week
-      const lastWeek = tempHistory[tempHistory.length - 1];
-      const topOwned = Array.from(playersSet)
-        .sort((a, b) => (lastWeek[b] || 0) - (lastWeek[a] || 0))
-        .slice(0, 3);
-      setSelectedPlayers(topOwned);
+      // Select Top 3 by default
+      setSelectedPlayers(options.slice(0, 3).map(o => o.id));
 
     } catch (e) {
       console.error(e);
@@ -165,6 +216,36 @@ export default function TrendsPage() {
       setProgress(100);
     }
   };
+
+  // Transform Data for Chart
+  const chartData = React.useMemo(() => {
+    return rawHistory.map((weekMap, index) => {
+      const point: any = { week: index + 1 };
+      selectedPlayers.forEach(pid => {
+        const stats = weekMap.get(pid);
+        if (stats) {
+          point[pid] = viewMode === 'total' ? stats.total : 
+                       viewMode === 'starter' ? stats.starter : stats.bench;
+        } else {
+          point[pid] = 0;
+        }
+      });
+      return point;
+    });
+  }, [rawHistory, selectedPlayers, viewMode]);
+
+  // Bulk Select Handlers
+  const selectPosition = (pos: string) => {
+    const playersToAdd = playerOptions
+      .filter(p => p.position === pos)
+      .map(p => p.id);
+    
+    // Add to existing selection, avoiding duplicates
+    const newSet = new Set([...selectedPlayers, ...playersToAdd]);
+    setSelectedPlayers(Array.from(newSet));
+  };
+
+  const clearSelection = () => setSelectedPlayers([]);
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -189,21 +270,65 @@ export default function TrendsPage() {
         </Box>
       )}
 
-      {history.length > 0 && (
+      {playerOptions.length > 0 && (
         <Paper sx={{ p: 3 }}>
+          
+          {/* Controls Row */}
+          <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, alignItems: 'flex-start' }}>
+            
+            {/* View Mode Toggle */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>View Mode</Typography>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, v) => v && setViewMode(v)}
+                size="small"
+              >
+                <ToggleButton value="total">Total Owned</ToggleButton>
+                <ToggleButton value="starter">Starters Only</ToggleButton>
+                <ToggleButton value="bench">Bench Only</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Quick Select */}
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>Quick Select</Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].map(pos => (
+                  <Chip 
+                    key={pos} 
+                    label={pos} 
+                    onClick={() => selectPosition(pos)} 
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                  />
+                ))}
+                <Chip label="Clear All" onClick={clearSelection} color="error" variant="outlined" size="small" />
+              </Stack>
+            </Box>
+          </Box>
+
           {/* Player Selector */}
           <Box sx={{ mb: 4 }}>
             <Autocomplete
               multiple
-              options={availablePlayers}
+              options={playerOptions}
               filterOptions={filterOptions}
-              getOptionLabel={(option) => option.name}
-              value={availablePlayers.filter(p => selectedPlayers.includes(p.id))}
+              getOptionLabel={(option) => `${option.name} (${option.totalWeeksOwned})`}
+              value={playerOptions.filter(p => selectedPlayers.includes(p.id))}
               onChange={(_, newValue) => {
                 setSelectedPlayers(newValue.map(p => p.id));
               }}
               renderInput={(params) => (
-                <TextField {...params} variant="outlined" label="Select Players to Graph" placeholder="Add player..." />
+                <TextField 
+                  {...params} 
+                  variant="outlined" 
+                  label="Select Players to Graph" 
+                  placeholder="Type to search..." 
+                  helperText="Number in parentheses indicates total weeks owned across all leagues."
+                />
               )}
             />
           </Box>
@@ -211,15 +336,11 @@ export default function TrendsPage() {
           {/* Chart */}
           <Box sx={{ height: 500, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={history} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                 <XAxis dataKey="week" stroke="#888" label={{ value: 'Week', position: 'insideBottom', offset: -5 }} />
                 <YAxis stroke="#888" label={{ value: 'Shares', angle: -90, position: 'insideLeft' }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#333', border: 'none' }}
-                  itemStyle={{ color: '#fff' }}
-                  labelStyle={{ color: '#aaa' }}
-                />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 {selectedPlayers.map((pid, index) => (
                   <Line 
@@ -230,6 +351,7 @@ export default function TrendsPage() {
                     stroke={COLORS[index % COLORS.length]} 
                     activeDot={{ r: 8 }} 
                     strokeWidth={2}
+                    connectNulls
                   />
                 ))}
               </LineChart>

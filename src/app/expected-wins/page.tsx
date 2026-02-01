@@ -74,28 +74,28 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
   const expectedPct = totalOpportunities > 0 ? (totalExpected / totalOpportunities) * 100 : 0;
 
   return (
-    <Card sx={{ mb: 4, bgcolor: 'secondary.dark', color: 'white' }}>
+    <Card sx={{ mb: 4, bgcolor: '#e3f2fd', color: 'text.primary', border: '1px solid', borderColor: 'primary.light' }}>
       <CardContent>
         <Grid container spacing={4} textAlign="center">
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="secondary.light">Record</Typography>
+            <Typography variant="h6" color="primary.main">Record</Typography>
             <Typography variant="h3" fontWeight="bold">
-              {totalActual.toFixed(0)} <Typography component="span" variant="h5" color="rgba(255,255,255,0.7)">Wins</Typography>
+              {totalActual.toFixed(0)} <Typography component="span" variant="h5" color="text.secondary">Wins</Typography>
             </Typography>
             <Typography variant="body2">Win Rate: {actualPct.toFixed(1)}%</Typography>
           </Grid>
           
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="secondary.light">Expected</Typography>
+            <Typography variant="h6" color="primary.main">Expected</Typography>
             <Typography variant="h3" fontWeight="bold">
-              {totalExpected.toFixed(1)} <Typography component="span" variant="h5" color="rgba(255,255,255,0.7)">Wins</Typography>
+              {totalExpected.toFixed(1)} <Typography component="span" variant="h5" color="text.secondary">Wins</Typography>
             </Typography>
             <Typography variant="body2">Exp. Win Rate: {expectedPct.toFixed(1)}%</Typography>
           </Grid>
 
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="secondary.light">Luck</Typography>
-            <Typography variant="h3" fontWeight="bold" sx={{ color: diff > 0 ? '#66bb6a' : '#f44336' }}>
+            <Typography variant="h6" color="primary.main">Luck</Typography>
+            <Typography variant="h3" fontWeight="bold" sx={{ color: diff > 0 ? '#2e7d32' : '#d32f2f' }}>
               {diff > 0 ? '+' : ''}{diff.toFixed(1)}
             </Typography>
             <Typography variant="body2">Wins vs Expected</Typography>
@@ -103,21 +103,21 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
 
           {showAdvanced && (
             <>
-              <Grid size={{ xs: 12 }}><Divider sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} /></Grid>
+              <Grid size={{ xs: 12 }}><Divider sx={{ bgcolor: 'rgba(0,0,0,0.1)' }} /></Grid>
               
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="secondary.light">Points For</Typography>
+                <Typography variant="h6" color="primary.main">Points For</Typography>
                 <Typography variant="h4" fontWeight="bold">{totalPF.toLocaleString()}</Typography>
               </Grid>
               
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="secondary.light">Points Against</Typography>
+                <Typography variant="h6" color="primary.main">Points Against</Typography>
                 <Typography variant="h4" fontWeight="bold">{totalPA.toLocaleString()}</Typography>
               </Grid>
 
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="secondary.light">Point Diff</Typography>
-                <Typography variant="h4" fontWeight="bold" sx={{ color: pointsDiff > 0 ? '#66bb6a' : '#f44336' }}>
+                <Typography variant="h6" color="primary.main">Point Diff</Typography>
+                <Typography variant="h4" fontWeight="bold" sx={{ color: pointsDiff > 0 ? '#2e7d32' : '#d32f2f' }}>
                   {pointsDiff > 0 ? '+' : ''}{pointsDiff.toLocaleString()}
                 </Typography>
               </Grid>

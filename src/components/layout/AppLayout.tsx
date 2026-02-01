@@ -139,8 +139,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
             {MENU_ITEMS.find(i => i.href === pathname)?.text || 'Fantasy Football'}
+            <Chip 
+              label="BETA" 
+              color="error" 
+              size="small" 
+              sx={{ 
+                fontWeight: 'bold', 
+                height: 20, 
+                fontSize: '0.65rem',
+                boxShadow: '0 0 8px rgba(211, 47, 47, 0.4)'
+              }} 
+            />
           </Typography>
 
           {user && (
