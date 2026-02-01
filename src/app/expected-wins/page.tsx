@@ -353,12 +353,8 @@ export default function ExpectedWinsPage() {
       });
     });
 
-    // 2. Process Weeks
-    // If playoff_week_start is 0, it implies no playoffs, so we analyze the full 18 week schedule.
-    // Otherwise, we analyze up to the week BEFORE playoffs start.
-    const settingStart = league.settings.playoff_week_start;
-    const weeksToAnalyze = (settingStart === 0) ? 18 : (settingStart || 15) - 1;
-    
+    const playoffStart = league.settings.playoff_week_start;
+    const weeksToAnalyze = (playoffStart === 0) ? 18 : (playoffStart || 15) - 1;
     const useMedian = league.settings.league_average_match === 1;
 
     const weeks = Array.from({length: weeksToAnalyze}, (_, i) => i + 1);
