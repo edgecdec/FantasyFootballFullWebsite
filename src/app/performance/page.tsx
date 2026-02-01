@@ -108,7 +108,7 @@ function determineFinalRank(
   const playoffTeams = league.settings.playoff_teams || 6;
   const totalTeams = rosters.length;
   
-  // Auto-detect Bracket Type
+  // Auto-detect Bracket Type (Toilet Bowl vs Consolation)
   const bracketChampionship = losersBracket.find(m => m.p === 1);
   let isToiletBowl = false;
   
@@ -127,15 +127,11 @@ function determineFinalRank(
     const place = consolationMatch.p;
     
     if (isToiletBowl) {
-      // In Toilet Bowl API, 'w' = Score Loser = Worse Rank.
-      // 'l' = Score Winner = Better Rank.
       const isBracketWinner = consolationMatch.w === rosterId; 
       const baseRank = totalTeams - (place - 1);
       const rank = isBracketWinner ? baseRank : baseRank - 1;
-      
       return { rank, madePlayoffs: false, source: 'loser_bracket' };
     } else {
-      // Consolation Logic
       const offset = playoffTeams;
       if (isWinner) return { rank: offset + place, madePlayoffs: false, source: 'loser_bracket' };
       return { rank: offset + place + 1, madePlayoffs: false, source: 'loser_bracket' };
@@ -336,8 +332,6 @@ export default function PerformancePage() {
 
   const YEARS = ['2025', '2024', '2023', '2022', '2021'];
 
-  // User Loading handled by UserSearchInput automatically? No, we need to init logic
-  // Similar to Portfolio Page
   React.useEffect(() => {
     const saved = localStorage.getItem('sleeper_usernames');
     if (saved) {
@@ -347,6 +341,14 @@ export default function PerformancePage() {
       } catch (e) { console.error(e); }
     }
   }, []);
+
+  // Auto-Run when Username is set
+  React.useEffect(() => {
+    if (username && !loadingUser && !analyzing && leagueData.length === 0) {
+      const t = setTimeout(() => handleStart(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [username]);
 
   const saveUsername = (name: string) => {
     const saved = localStorage.getItem('sleeper_usernames');
@@ -407,8 +409,7 @@ export default function PerformancePage() {
       }
 
       completed++;
-      setProgress((completed / total) * 100);
-      await new Promise(r => setTimeout(r, 200)); 
+      await new Promise(r => setTimeout(r, 500)); 
     }
     setAnalyzing(false);
   };
@@ -529,12 +530,13 @@ export default function PerformancePage() {
           </FormControl>
           <Button 
             variant="contained" 
+            color="secondary"
             size="large" 
             onClick={handleStart}
             disabled={loadingUser || !username}
             sx={{ height: 56 }}
           >
-            {loadingUser ? 'Fetching...' : 'Analyze Season'}
+            {loadingUser ? 'Fetching...' : 'Analyze'}
           </Button>
         </Box>
         {analyzing && <LinearProgress variant="determinate" value={progress} sx={{ mt: 3 }} />}

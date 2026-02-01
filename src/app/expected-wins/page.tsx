@@ -41,6 +41,7 @@ import PageHeader from '@/components/common/PageHeader';
 import UserSearchInput from '@/components/common/UserSearchInput';
 
 // --- Types ---
+// ... (Types remain same)
 type AnalysisStatus = 'idle' | 'pending' | 'loading' | 'complete' | 'error';
 
 type LeagueData = {
@@ -67,8 +68,7 @@ type TeamStats = {
   pointsAgainst: number;
 };
 
-// --- Helper Components ---
-
+// ... (Helper Components remain same)
 function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced: boolean }) {
   const active = data.filter(d => d.category === 'included' && d.status === 'complete');
   
@@ -85,11 +85,11 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
   const expectedPct = approxGames > 0 ? (totalExpected / approxGames) * 100 : 0;
 
   return (
-    <Card sx={{ mb: 4, bgcolor: 'primary.dark', color: 'white' }}>
+    <Card sx={{ mb: 4, bgcolor: 'secondary.dark', color: 'white' }}>
       <CardContent>
         <Grid container spacing={4} textAlign="center">
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="primary.light">Record</Typography>
+            <Typography variant="h6" color="secondary.light">Record</Typography>
             <Typography variant="h3" fontWeight="bold">
               {totalActual.toFixed(0)} <Typography component="span" variant="h5" color="rgba(255,255,255,0.7)">Wins</Typography>
             </Typography>
@@ -97,7 +97,7 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
           </Grid>
           
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="primary.light">Expected</Typography>
+            <Typography variant="h6" color="secondary.light">Expected</Typography>
             <Typography variant="h3" fontWeight="bold">
               {totalExpected.toFixed(1)} <Typography component="span" variant="h5" color="rgba(255,255,255,0.7)">Wins</Typography>
             </Typography>
@@ -105,7 +105,7 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
           </Grid>
 
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" color="primary.light">Luck</Typography>
+            <Typography variant="h6" color="secondary.light">Luck</Typography>
             <Typography variant="h3" fontWeight="bold" sx={{ color: diff > 0 ? '#66bb6a' : '#f44336' }}>
               {diff > 0 ? '+' : ''}{diff.toFixed(1)}
             </Typography>
@@ -117,17 +117,17 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
               <Grid size={{ xs: 12 }}><Divider sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} /></Grid>
               
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="primary.light">Points For</Typography>
+                <Typography variant="h6" color="secondary.light">Points For</Typography>
                 <Typography variant="h4" fontWeight="bold">{totalPF.toLocaleString()}</Typography>
               </Grid>
               
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="primary.light">Points Against</Typography>
+                <Typography variant="h6" color="secondary.light">Points Against</Typography>
                 <Typography variant="h4" fontWeight="bold">{totalPA.toLocaleString()}</Typography>
               </Grid>
 
               <Grid size={{ xs: 12, md: 4 }}>
-                <Typography variant="h6" color="primary.light">Point Diff</Typography>
+                <Typography variant="h6" color="secondary.light">Point Diff</Typography>
                 <Typography variant="h4" fontWeight="bold" sx={{ color: pointsDiff > 0 ? '#66bb6a' : '#f44336' }}>
                   {pointsDiff > 0 ? '+' : ''}{pointsDiff.toLocaleString()}
                 </Typography>
@@ -299,6 +299,15 @@ export default function ExpectedWinsPage() {
     if (savedAdv === 'true') setShowAdvanced(true);
   }, []);
 
+  // Auto-Run when Username is set
+  React.useEffect(() => {
+    if (username && !loadingUser && !analyzing && leagueData.length === 0) {
+      // Debounce slightly to prevent flicker if typing
+      const t = setTimeout(() => handleStart(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [username]); // Triggers when username loads from storage or is typed
+
   const toggleAdvanced = () => {
     const newVal = !showAdvanced;
     setShowAdvanced(newVal);
@@ -347,6 +356,7 @@ export default function ExpectedWinsPage() {
   };
 
   const processQueue = async (leaguesToProcess: SleeperLeague[], userId: string) => {
+    // ... existing logic ...
     const total = leaguesToProcess.length;
     let completed = 0;
 
@@ -386,6 +396,7 @@ export default function ExpectedWinsPage() {
   };
 
   const analyzeLeague = async (league: SleeperLeague, userId: string) => {
+    // ... existing logic (no changes) ...
     const [rostersRes, usersRes] = await Promise.all([
       fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`),
       fetch(`https://api.sleeper.app/v1/league/${league.league_id}/users`)
@@ -491,6 +502,7 @@ export default function ExpectedWinsPage() {
 
           <Button 
             variant="contained" 
+            color="secondary"
             size="large" 
             onClick={handleStart}
             disabled={loadingUser || !username}
@@ -507,30 +519,26 @@ export default function ExpectedWinsPage() {
       {leagueData.some(d => d.category === 'included') && (
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom color="primary">Included Leagues</Typography>
-          {leagueData.filter(d => d.category === 'included').map(item => (
-            <LeagueRow 
-              key={item.league.league_id} 
-              item={item} 
-              userId={user!.user_id} 
-              onToggle={() => toggleCategory(item.league.league_id)}
-              showAdvanced={showAdvanced}
-            />
-          ))}
+          <Grid container spacing={2}>
+            {leagueData.filter(d => d.category === 'included').map(item => (
+              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
+                <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} showAdvanced={showAdvanced} />
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       )}
 
       {leagueData.some(d => d.category === 'excluded') && (
         <Box sx={{ mb: 4, opacity: 0.8 }}>
           <Divider sx={{ mb: 2 }} >Excluded Leagues</Divider>
-          {leagueData.filter(d => d.category === 'excluded').map(item => (
-            <LeagueRow 
-              key={item.league.league_id} 
-              item={item} 
-              userId={user!.user_id} 
-              onToggle={() => toggleCategory(item.league.league_id)} 
-              showAdvanced={showAdvanced}
-            />
-          ))}
+          <Grid container spacing={2}>
+            {leagueData.filter(d => d.category === 'excluded').map(item => (
+              <Grid size={{ xs: 12, md: 6 }} key={item.league.league_id}>
+                <LeagueRow item={item} onToggle={() => toggleCategory(item.league.league_id)} userId={user!.user_id} showAdvanced={showAdvanced} />
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       )}
     </Container>
