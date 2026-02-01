@@ -104,14 +104,37 @@ function determineFinalRank(
   
   // 2. Check Losers Bracket
   const playoffTeams = league.settings.playoff_teams || 6;
-  const offset = playoffTeams;
+  const playoffType = league.settings.playoff_type || 0; // 0=Consolation, 1=Toilet Bowl
+  const totalTeams = rosters.length; // usually 10 or 12
+  
   const consolationMatch = losersBracket.find(m => (m.w === rosterId || m.l === rosterId) && m.p);
   
   if (consolationMatch && consolationMatch.p) {
     const isWinner = consolationMatch.w === rosterId;
     const place = consolationMatch.p;
-    if (isWinner) return { rank: offset + place, madePlayoffs: false, source: 'loser_bracket' };
-    return { rank: offset + place + 1, madePlayoffs: false, source: 'loser_bracket' };
+    
+    if (playoffType === 1) {
+      // Toilet Bowl Logic (Loser Advances, p=1 is the "Toilet Bowl Final" for last place)
+      // p=1 Match: Loser -> Last (12th), Winner -> 2nd Last (11th)
+      // p=3 Match: Loser -> 10th, Winner -> 9th
+      // p=5 Match: Loser -> 8th, Winner -> 7th
+      
+      // Formula: 
+      // Loser Rank = TotalTeams - (p - 1)
+      // Winner Rank = TotalTeams - p
+      
+      if (!isWinner) return { rank: totalTeams - (place - 1), madePlayoffs: false, source: 'loser_bracket' };
+      return { rank: totalTeams - place, madePlayoffs: false, source: 'loser_bracket' };
+      
+    } else {
+      // Consolation Logic (Winner Advances, p=1 is "Best of Rest")
+      // p=1 Match: Winner -> 7th, Loser -> 8th
+      // Rank = Offset + p (+1 if loser)
+      
+      const offset = playoffTeams;
+      if (isWinner) return { rank: offset + place, madePlayoffs: false, source: 'loser_bracket' };
+      return { rank: offset + place + 1, madePlayoffs: false, source: 'loser_bracket' };
+    }
   }
 
   // 3. Fallback: Regular Season Rank

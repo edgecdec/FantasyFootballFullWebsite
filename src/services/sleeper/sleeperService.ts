@@ -19,6 +19,9 @@ export type SleeperLeague = {
   avatar?: string;
   settings: {
     playoff_week_start?: number;
+    playoff_type?: number; // 0=Consolation, 1=Toilet Bowl
+    playoff_teams?: number;
+    league_average_match?: number;
     [key: string]: any;
   };
 };
