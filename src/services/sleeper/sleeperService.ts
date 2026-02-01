@@ -217,5 +217,52 @@ export const SleeperService = {
     }
 
     return results;
+  },
+
+  // Batch fetch matchups for a specific week
+  async fetchAllMatchups(
+    leagues: SleeperLeague[],
+    week: number,
+    onProgress: (completed: number, total: number) => void
+  ): Promise<Map<string, SleeperMatchup[]>> {
+    const results = new Map<string, SleeperMatchup[]>();
+    const total = leagues.length;
+    let completed = 0;
+
+    const CONCURRENCY_LIMIT = 5;
+    const chunks = [];
+    for (let i = 0; i < leagues.length; i += CONCURRENCY_LIMIT) {
+      chunks.push(leagues.slice(i, i + CONCURRENCY_LIMIT));
+    }
+
+    for (const chunk of chunks) {
+      await Promise.all(chunk.map(async (league) => {
+        try {
+          // Check cache inside the loop to allow partial caching if needed
+          const cacheKey = `matchups_${league.league_id}_${week}`;
+          const cached = getCached<SleeperMatchup[]>(cacheKey);
+          
+          if (cached) {
+            results.set(league.league_id, cached);
+          } else {
+            const res = await fetch(`${BASE_URL}/league/${league.league_id}/matchups/${week}`);
+            if (res.ok) {
+              const data = await res.json();
+              setCached(cacheKey, data);
+              results.set(league.league_id, data);
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to fetch matchups for league ${league.league_id}`, e);
+        } finally {
+          completed++;
+          onProgress(completed, total);
+        }
+      }));
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return results;
   }
 };

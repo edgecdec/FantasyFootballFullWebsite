@@ -18,9 +18,9 @@ import {
   FormControl,
   Autocomplete
 } from '@mui/material';
-import { SleeperService, SleeperUser } from '@/services/sleeper/sleeperService';
+import { SleeperService, SleeperUser, SleeperMatchup } from '@/services/sleeper/sleeperService';
 import playerData from '../../../data/sleeper_players.json';
-import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
+import DataTable, { Column } from '@/components/common/SmartTable';
 
 // Types
 type PortfolioItem = {
@@ -37,12 +37,15 @@ type PortfolioItem = {
 };
 
 const YEARS = ['2025', '2024', '2023', '2022', '2021', '2020'];
+const WEEKS = Array.from({length: 18}, (_, i) => i + 1);
 
 export default function PortfolioPage() {
   // State
   const [username, setUsername] = React.useState('');
   const [savedUsernames, setSavedUsernames] = React.useState<string[]>([]);
   const [year, setYear] = React.useState('2025');
+  const [week, setWeek] = React.useState<string>('live'); // 'live' or '1'...'18'
+  
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
@@ -70,12 +73,12 @@ export default function PortfolioPage() {
     localStorage.setItem('sleeper_usernames', JSON.stringify(newSaved));
   };
 
-  // Auto-analyze when year changes
+  // Auto-analyze triggers
   React.useEffect(() => {
     if (username && !loading && user) {
       handleAnalyze();
     }
-  }, [year]);
+  }, [year, week]);
 
   const handleAnalyze = async () => {
     if (!username) return;
@@ -84,15 +87,22 @@ export default function PortfolioPage() {
     setError(null);
     setProgress(0);
     setPortfolio([]);
-    setUser(null);
+    
+    // Don't clear user here if it's just a week switch, but safety check:
+    // setUser(null); 
 
     try {
-      const userRes = await SleeperService.getUser(username);
-      if (!userRes) throw new Error('User not found');
-      setUser(userRes);
-      saveUsername(username);
+      // 1. Get User (or reuse)
+      let currentUser = user;
+      if (!currentUser || currentUser.username.toLowerCase() !== username.toLowerCase()) {
+        currentUser = await SleeperService.getUser(username);
+        if (!currentUser) throw new Error('User not found');
+        setUser(currentUser);
+        saveUsername(username);
+      }
 
-      const leagues = await SleeperService.getLeagues(userRes.user_id, year);
+      // 2. Get Leagues
+      const leagues = await SleeperService.getLeagues(currentUser.user_id, year);
       setTotalLeagues(leagues.length);
 
       if (leagues.length === 0) {
@@ -100,30 +110,74 @@ export default function PortfolioPage() {
         return;
       }
 
+      // 3. Fetch Rosters (Always needed for Owner ID -> Roster ID mapping)
+      // Note: If we are doing 'live' view, we treat this as 50% of work. 
+      // If doing historical, this is 50%, matchups are 50%.
       const rosterMap = await SleeperService.fetchAllRosters(
         leagues, 
-        userRes.user_id,
-        (completed, total) => setProgress((completed / total) * 100)
+        currentUser.user_id,
+        (completed, total) => {
+          // If we also need matchups, this is only the first half of progress
+          const scale = week === 'live' ? 100 : 50;
+          setProgress((completed / total) * scale);
+        }
       );
 
+      // 4. Fetch Matchups (If historical)
+      let matchupMap = new Map<string, SleeperMatchup[]>();
+      if (week !== 'live') {
+        matchupMap = await SleeperService.fetchAllMatchups(
+          leagues,
+          parseInt(week, 10),
+          (completed, total) => {
+            // Second half of progress (50% to 100%)
+            setProgress(50 + (completed / total) * 50);
+          }
+        );
+      }
+
+      // 5. Aggregation
       const playerCounts = new Map<string, { count: number, startCount: number, benchCount: number, leagueIds: string[] }>();
       
-      rosterMap.forEach((roster, leagueId) => {
-        if (roster.players) {
-          roster.players.forEach(pid => {
-            const current = playerCounts.get(pid) || { count: 0, startCount: 0, benchCount: 0, leagueIds: [] };
-            current.count++;
-            
-            const isStarter = roster.starters && roster.starters.includes(pid);
-            if (isStarter) current.startCount++;
-            else current.benchCount++;
+      leagues.forEach(league => {
+        const userRoster = rosterMap.get(league.league_id);
+        if (!userRoster) return; // User not in this league (or error)
 
-            current.leagueIds.push(leagueId);
-            playerCounts.set(pid, current);
-          });
+        let players: string[] = [];
+        let starters: string[] = [];
+
+        if (week === 'live') {
+          // Use current roster state
+          players = userRoster.players || [];
+          starters = userRoster.starters || [];
+        } else {
+          // Use historical matchup data
+          const leagueMatchups = matchupMap.get(league.league_id);
+          const myMatchup = leagueMatchups?.find(m => m.roster_id === userRoster.roster_id);
+          
+          if (myMatchup) {
+            players = myMatchup.players || [];
+            starters = myMatchup.starters || [];
+          }
         }
+
+        // Count 'em
+        players.forEach(pid => {
+          const current = playerCounts.get(pid) || { count: 0, startCount: 0, benchCount: 0, leagueIds: [] };
+          current.count++;
+          
+          if (starters.includes(pid)) {
+            current.startCount++;
+          } else {
+            current.benchCount++;
+          }
+
+          current.leagueIds.push(league.league_id);
+          playerCounts.set(pid, current);
+        });
       });
 
+      // 6. Build Items
       const items: PortfolioItem[] = [];
       const playersJson = (playerData as any).players;
 
@@ -155,7 +209,7 @@ export default function PortfolioPage() {
   };
 
   // Define Columns
-  const columns: SmartColumn<PortfolioItem>[] = [
+  const columns: Column<PortfolioItem>[] = [
     { 
       id: 'playerData.last_name', 
       label: 'Player', 
@@ -168,7 +222,7 @@ export default function PortfolioPage() {
     { 
       id: 'playerData.position', 
       label: 'Position', 
-      filterVariant: 'multi-select', // Auto-filter!
+      filterVariant: 'multi-select', 
       render: (item) => (
         <Chip 
           label={item.playerData.position} 
@@ -185,7 +239,7 @@ export default function PortfolioPage() {
     { 
       id: 'playerData.team', 
       label: 'Team',
-      filterVariant: 'multi-select' // Auto-filter!
+      filterVariant: 'multi-select'
     },
     { 
       id: 'shares', 
@@ -248,6 +302,19 @@ export default function PortfolioPage() {
             </Select>
           </FormControl>
 
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Week</InputLabel>
+            <Select
+              value={week}
+              label="Week"
+              onChange={(e) => setWeek(e.target.value)}
+              disabled={loading}
+            >
+              <MenuItem value="live">Live / End</MenuItem>
+              {WEEKS.map(w => <MenuItem key={w} value={w.toString()}>Week {w}</MenuItem>)}
+            </Select>
+          </FormControl>
+
           <Button 
             variant="contained" 
             size="large" 
@@ -255,7 +322,7 @@ export default function PortfolioPage() {
             disabled={loading || !username}
             sx={{ height: 56 }}
           >
-            {loading ? 'Analyzing...' : 'Analyze Portfolio'}
+            {loading ? 'Analyzing...' : 'Analyze'}
           </Button>
         </Box>
 
@@ -285,18 +352,19 @@ export default function PortfolioPage() {
             <Box>
               <Typography variant="h5">{user.display_name}</Typography>
               <Typography variant="body2" color="text.secondary">
-                {totalLeagues} Leagues found in {year}
+                {totalLeagues} Leagues found in {year} {week !== 'live' ? `(Week ${week})` : ''}
               </Typography>
             </Box>
           </Box>
 
-          <SmartTable
+          <DataTable
             data={portfolio}
             columns={columns}
             keyField="playerId"
             defaultSortBy="shares"
             defaultSortOrder="desc"
             defaultRowsPerPage={25}
+            noDataMessage="No players found in your rosters."
           />
         </>
       )}
