@@ -16,13 +16,24 @@ import {
   TextField,
   MenuItem,
   Chip,
-  CircularProgress
+  TableSortLabel
 } from '@mui/material';
 
-// We import the JSON directly. Next.js handles this efficiently in build.
-// Note: In a real "active" app, you might fetch this from an API endpoint 
-// to avoid bundling 5MB into the client bundle, but for a skeleton it works.
+// Import JSON data
 import playerData from '../../../data/sleeper_players.json';
+
+type PlayerStats = {
+  pts_std: number;
+  pts_half_ppr: number;
+  pts_ppr: number;
+  gp: number;
+  pass_yd: number;
+  pass_td: number;
+  rush_yd: number;
+  rush_td: number;
+  rec_yd: number;
+  rec_td: number;
+};
 
 type Player = {
   player_id: string;
@@ -33,11 +44,12 @@ type Player = {
   active: boolean;
   age?: number;
   number?: number;
+  stats?: PlayerStats; 
 };
 
-// Convert the dictionary to an array once
-const ALL_PLAYERS = Object.values(playerData.players)
-  .filter((p: any) => p.position && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(p.position)) // Filter to fantasy relevant positions initially
+// 1. Process data on load
+const ALL_PLAYERS: Player[] = Object.values(playerData.players)
+  .filter((p: any) => p.position && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(p.position))
   .map((p: any) => ({
     player_id: p.player_id,
     first_name: p.first_name,
@@ -46,16 +58,75 @@ const ALL_PLAYERS = Object.values(playerData.players)
     team: p.team || 'FA',
     active: p.active,
     age: p.age,
-    number: p.number
+    number: p.number,
+    stats: p.stats || null
   }));
+
+// Extract unique teams for dropdown
+const TEAMS = Array.from(new Set(ALL_PLAYERS.map(p => p.team).filter(t => t && t !== 'FA'))).sort();
+
+// Sorting Helper
+type Order = 'asc' | 'desc';
+
+function descendingComparator<T>(a: T, b: T, orderBy: keyof T | string) {
+  let aValue: any;
+  let bValue: any;
+
+  // Handle nested stats sorting
+  if (orderBy.startsWith('stats.')) {
+    const statKey = orderBy.split('.')[1] as keyof PlayerStats;
+    aValue = (a as any).stats?.[statKey] ?? -9999;
+    bValue = (b as any).stats?.[statKey] ?? -9999;
+  } else {
+    aValue = (a as any)[orderBy] ?? '';
+    bValue = (b as any)[orderBy] ?? '';
+    if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+    if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+  }
+
+  if (bValue < aValue) return -1;
+  if (bValue > aValue) return 1;
+  return 0;
+}
+
+function getComparator<Key extends keyof any>(
+  order: Order,
+  orderBy: Key,
+): (a: { [key in Key]: number | string }, b: { [key in Key]: number | string }) => number {
+  return order === 'desc'
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
+}
+
+// Headers Configuration
+const HEAD_CELLS = [
+  { id: 'last_name', label: 'Name', numeric: false },
+  { id: 'position', label: 'Pos', numeric: false },
+  { id: 'team', label: 'Team', numeric: false },
+  { id: 'stats.pts_std', label: 'Std Pts', numeric: true },
+  { id: 'stats.pts_half_ppr', label: 'Half PPR', numeric: true },
+  { id: 'stats.pts_ppr', label: 'PPR Pts', numeric: true },
+  { id: 'stats.gp', label: 'GP', numeric: true },
+];
 
 export default function PlayersPage() {
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage, setRowsPerPage] = React.useState(25);
   const [filterName, setFilterName] = React.useState('');
   const [filterPos, setFilterPos] = React.useState('ALL');
+  const [filterTeam, setFilterTeam] = React.useState('ALL');
+  
+  // Sorting State
+  const [order, setOrder] = React.useState<Order>('desc');
+  const [orderBy, setOrderBy] = React.useState<string>('stats.pts_half_ppr');
 
-  // Filter logic
+  const handleRequestSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  // 1. Filter
   const filteredPlayers = React.useMemo(() => {
     return ALL_PLAYERS.filter(player => {
       const matchesName = 
@@ -63,29 +134,22 @@ export default function PlayersPage() {
         player.last_name.toLowerCase().includes(filterName.toLowerCase());
       
       const matchesPos = filterPos === 'ALL' || player.position === filterPos;
+      const matchesTeam = filterTeam === 'ALL' || player.team === filterTeam;
 
-      return matchesName && matchesPos;
+      return matchesName && matchesPos && matchesTeam;
     });
-  }, [filterName, filterPos]);
+  }, [filterName, filterPos, filterTeam]);
 
-  // Pagination logic
-  const displayedPlayers = React.useMemo(() => {
-    return filteredPlayers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  }, [filteredPlayers, page, rowsPerPage]);
-
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+  // 2. Sort & Paginate
+  const visibleRows = React.useMemo(() => {
+    const sorted = [...filteredPlayers].sort(getComparator(order, orderBy));
+    return sorted.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  }, [filteredPlayers, order, orderBy, page, rowsPerPage]);
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
-        Player Database
+        Player Database & Stats (2025)
       </Typography>
       
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -95,7 +159,10 @@ export default function PlayersPage() {
             variant="outlined" 
             size="small"
             value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
+            onChange={(e) => {
+              setFilterName(e.target.value);
+              setPage(0); 
+            }}
             sx={{ minWidth: 200 }}
           />
           
@@ -103,7 +170,10 @@ export default function PlayersPage() {
             select
             label="Position"
             value={filterPos}
-            onChange={(e) => setFilterPos(e.target.value)}
+            onChange={(e) => {
+              setFilterPos(e.target.value);
+              setPage(0); 
+            }}
             size="small"
             sx={{ minWidth: 120 }}
           >
@@ -115,34 +185,52 @@ export default function PlayersPage() {
             <MenuItem value="K">K</MenuItem>
             <MenuItem value="DEF">DEF</MenuItem>
           </TextField>
-          
-          <Box sx={{ ml: 'auto', alignSelf: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Total Players: {filteredPlayers.length}
-            </Typography>
-          </Box>
+
+          <TextField
+            select
+            label="Team"
+            value={filterTeam}
+            onChange={(e) => {
+              setFilterTeam(e.target.value);
+              setPage(0); 
+            }}
+            size="small"
+            sx={{ minWidth: 120 }}
+          >
+            <MenuItem value="ALL">All Teams</MenuItem>
+            {TEAMS.map((team) => (
+              <MenuItem key={team} value={team}>{team}</MenuItem>
+            ))}
+          </TextField>
         </Box>
       </Paper>
 
       <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 650 }} aria-label="simple table">
+        <Table sx={{ minWidth: 750 }} size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'background.default' }}>
-              <TableCell>Name</TableCell>
-              <TableCell>Position</TableCell>
-              <TableCell>Team</TableCell>
-              <TableCell>Age</TableCell>
-              <TableCell>Number</TableCell>
-              <TableCell>Status</TableCell>
+              {HEAD_CELLS.map((headCell) => (
+                <TableCell
+                  key={headCell.id}
+                  align={headCell.numeric ? 'right' : 'left'}
+                  sortDirection={orderBy === headCell.id ? order : false}
+                  sx={{ fontWeight: 'bold' }}
+                >
+                  <TableSortLabel
+                    active={orderBy === headCell.id}
+                    direction={orderBy === headCell.id ? order : 'asc'}
+                    onClick={() => handleRequestSort(headCell.id)}
+                  >
+                    {headCell.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {displayedPlayers.map((player) => (
-              <TableRow
-                key={player.player_id}
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-              >
-                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
+            {visibleRows.map((player) => (
+              <TableRow key={player.player_id} hover>
+                <TableCell component="th" scope="row" sx={{ fontWeight: 'medium' }}>
                   {player.first_name} {player.last_name}
                 </TableCell>
                 <TableCell>
@@ -159,20 +247,19 @@ export default function PlayersPage() {
                   />
                 </TableCell>
                 <TableCell>{player.team}</TableCell>
-                <TableCell>{player.age || '-'}</TableCell>
-                <TableCell>{player.number ? `#${player.number}` : '-'}</TableCell>
-                <TableCell>
-                  {player.active ? (
-                    <Typography variant="caption" color="success.main" fontWeight="bold">ACTIVE</Typography>
-                  ) : (
-                     <Typography variant="caption" color="text.disabled">INACTIVE</Typography>
-                  )}
+                
+                {/* Stats Columns */}
+                <TableCell align="right">{player.stats?.pts_std?.toFixed(1) || '-'}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                  {player.stats?.pts_half_ppr?.toFixed(1) || '-'}
                 </TableCell>
+                <TableCell align="right">{player.stats?.pts_ppr?.toFixed(1) || '-'}</TableCell>
+                <TableCell align="right">{player.stats?.gp || '-'}</TableCell>
               </TableRow>
             ))}
-            {displayedPlayers.length === 0 && (
+            {visibleRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                   No players found.
                 </TableCell>
               </TableRow>
@@ -182,13 +269,16 @@ export default function PlayersPage() {
       </TableContainer>
       
       <TablePagination
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[25, 50, 100]}
         component="div"
         count={filteredPlayers.length}
         rowsPerPage={rowsPerPage}
         page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
+        onPageChange={(e, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(e) => {
+          setRowsPerPage(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
       />
     </Container>
   );

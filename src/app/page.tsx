@@ -25,6 +25,7 @@ export default function HomePage() {
         {[
           { title: 'Live Draft Assistant', desc: 'Real-time pick suggestions based on value.', href: '/draft', cta: 'Start Draft' },
           { title: 'Trade Calculator', desc: 'Analyze trades with multi-team support.', href: '/trade', cta: 'Evaluate Trade' },
+          { title: 'Player Database', desc: 'Search and filter all active NFL players.', href: '/players', cta: 'Search Players' },
           { title: 'Rankings', desc: 'Consensus rankings from top experts.', href: '/rankings', cta: 'View Rankings' },
           { title: 'Team Rater', desc: 'Get a comprehensive grade for your team.', href: '/rate-my-team', cta: 'Rate Team' },
         ].map((feature) => (
