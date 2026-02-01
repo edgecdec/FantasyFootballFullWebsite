@@ -5,17 +5,15 @@ import {
   Box,
   TextField,
   Paper,
-  MenuItem,
-  Checkbox,
-  ListItemText,
-  Select,
   FormControl,
   InputLabel,
+  Select,
+  MenuItem,
   OutlinedInput,
-  SelectChangeEvent,
   Chip
 } from '@mui/material';
 import DataTable, { Column as BaseColumn } from './DataTable';
+import MultiSelectFilter from './MultiSelectFilter';
 
 // --- Types ---
 
@@ -145,32 +143,31 @@ export default function SmartTable<T>({
             const options = filterOptionsMap[col.id] || [];
             const selected = columnFilters[col.id] || [];
 
+            if (col.filterVariant === 'multi-select') {
+              return (
+                <MultiSelectFilter
+                  key={col.id}
+                  label={col.label}
+                  options={options}
+                  value={selected}
+                  onChange={(val) => handleColumnFilterChange(col.id, val)}
+                  minWidth={150}
+                />
+              );
+            }
+
+            // Fallback for single select (rarely used now, but kept for compatibility)
             return (
-              <FormControl key={col.id} size="small" sx={{ minWidth: 150, maxWidth: 300 }}>
+              <FormControl key={col.id} size="small" sx={{ minWidth: 150 }}>
                 <InputLabel>{col.label}</InputLabel>
                 <Select
-                  multiple={col.filterVariant === 'multi-select'}
-                  value={selected}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    handleColumnFilterChange(col.id, typeof val === 'string' ? val.split(',') : val);
-                  }}
+                  value={selected[0] || ''}
+                  onChange={(e) => handleColumnFilterChange(col.id, e.target.value ? [e.target.value] : [])}
                   input={<OutlinedInput label={col.label} />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip key={value} label={value} size="small" />
-                      ))}
-                    </Box>
-                  )}
                 >
+                  <MenuItem value=""><em>None</em></MenuItem>
                   {options.map((opt) => (
-                    <MenuItem key={opt} value={opt}>
-                      {col.filterVariant === 'multi-select' && (
-                        <Checkbox checked={selected.indexOf(opt) > -1} />
-                      )}
-                      <ListItemText primary={opt} />
-                    </MenuItem>
+                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
                   ))}
                 </Select>
               </FormControl>

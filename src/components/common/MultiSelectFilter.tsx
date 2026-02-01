@@ -9,8 +9,12 @@ import {
   OutlinedInput,
   Box,
   Chip,
-  SelectChangeEvent
+  SelectChangeEvent,
+  ListSubheader,
+  TextField,
+  InputAdornment
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -21,6 +25,7 @@ const MenuProps = {
       width: 250,
     },
   },
+  autoFocus: false
 };
 
 interface MultiSelectFilterProps {
@@ -41,13 +46,27 @@ export default function MultiSelectFilter({
   maxWidth = 300
 }: MultiSelectFilterProps) {
   
+  const [searchText, setSearchText] = React.useState('');
+
   const handleChange = (event: SelectChangeEvent<string[]>) => {
     const {
       target: { value: newValue },
     } = event;
     
-    // On autofill we get a stringified value.
+    // Check if the click came from the search input (MUI quirk)
+    // Actually, MUI Select handles values. We just need to ensure we don't accidentally select the search text.
     onChange(typeof newValue === 'string' ? newValue.split(',') : newValue);
+  };
+
+  // Filter options based on search text
+  const filteredOptions = React.useMemo(() => {
+    if (!searchText) return options;
+    return options.filter(opt => opt.toLowerCase().includes(searchText.toLowerCase()));
+  }, [options, searchText]);
+
+  // Handle keys to stop propagation so typing doesn't close menu or trigger select shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.stopPropagation();
   };
 
   return (
@@ -58,6 +77,7 @@ export default function MultiSelectFilter({
         value={value}
         onChange={handleChange}
         input={<OutlinedInput label={label} />}
+        onClose={() => setSearchText('')} // Reset search on close
         renderValue={(selected) => (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
             {selected.map((val) => (
@@ -67,11 +87,35 @@ export default function MultiSelectFilter({
         )}
         MenuProps={MenuProps}
       >
-        {options.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
+        <ListSubheader>
+          <TextField
+            size="small"
+            autoFocus
+            placeholder="Search..."
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              )
+            }}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()} // Prevent select close
+          />
+        </ListSubheader>
+        
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option}
+            </MenuItem>
+          ))
+        ) : (
+          <MenuItem disabled>No results found</MenuItem>
+        )}
       </Select>
     </FormControl>
   );
