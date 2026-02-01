@@ -49,6 +49,16 @@ export type SleeperMatchup = {
   custom_points: number | null;
 };
 
+export type SleeperBracketMatch = {
+  r: number; // round
+  m: number; // match id
+  t1: number | null; // roster id 1
+  t2: number | null; // roster id 2
+  w: number | null; // winner roster id
+  l: number | null; // loser roster id
+  p?: number; // place (e.g. 1 for 1st place match)
+};
+
 // Cache keys
 const CACHE_PREFIX = 'sleeper_cache_';
 const CACHE_DURATION_MS = 1000 * 60 * 15; // 15 minutes
@@ -150,6 +160,40 @@ export const SleeperService = {
     }
     
     return false;
+  },
+
+  async getWinnersBracket(leagueId: string): Promise<SleeperBracketMatch[]> {
+    const cacheKey = `bracket_winners_${leagueId}`;
+    const cached = getCached<SleeperBracketMatch[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const res = await fetch(`${BASE_URL}/league/${leagueId}/winners_bracket`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      setCached(cacheKey, data);
+      return data;
+    } catch (e) {
+      console.error(`Error fetching winners bracket for league ${leagueId}`, e);
+      return [];
+    }
+  },
+
+  async getLosersBracket(leagueId: string): Promise<SleeperBracketMatch[]> {
+    const cacheKey = `bracket_losers_${leagueId}`;
+    const cached = getCached<SleeperBracketMatch[]>(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const res = await fetch(`${BASE_URL}/league/${leagueId}/losers_bracket`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      setCached(cacheKey, data);
+      return data;
+    } catch (e) {
+      console.error(`Error fetching losers bracket for league ${leagueId}`, e);
+      return [];
+    }
   },
 
   // Batch fetch rosters with concurrency limit
