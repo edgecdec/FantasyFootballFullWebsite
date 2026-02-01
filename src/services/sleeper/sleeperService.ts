@@ -132,18 +132,20 @@ export const SleeperService = {
   },
 
   shouldIgnoreLeague(league: SleeperLeague): boolean {
+    // 1. Settings-based Exclusion
+    if (league.settings.type === 3) return true; // Guillotine / Elimination
+    if (league.settings.best_ball === 1) return true; // Best Ball (No H2H usually)
+
+    // 2. Name-based Exclusion
     const name = league.name.toLowerCase();
-    // Keywords to exclude
-    if (name.includes('guillotine') || 
-        name.includes('chopped') || 
-        name.includes('test') || 
+    if (name.includes('test') || 
         name.includes('mock') ||
-        name.includes('best ball') ||
-        name.includes('bestball')) {
+        name.includes('guillotine') || // Fallback if type is not 3
+        name.includes('chopped') ||
+        name.includes('eliminator')) {
       return true;
     }
-    // Check settings if available (settings.type might be 0, 1, 2 etc. but documentation is sparse)
-    // Guillotine usually has specific roster settings, but name is most reliable for now.
+    
     return false;
   },
 
