@@ -18,14 +18,18 @@ import {
   Toolbar,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Avatar,
+  Menu,
+  MenuItem as MuiMenuItem
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
-import PieChartIcon from '@mui/icons-material/PieChart'; // Portfolio
-import TrendingUpIcon from '@mui/icons-material/TrendingUp'; // Luck/Wins
-import GroupsIcon from '@mui/icons-material/Groups'; // Players
-import SportsFootballIcon from '@mui/icons-material/SportsFootball'; // Brand icon
+import PieChartIcon from '@mui/icons-material/PieChart';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import GroupsIcon from '@mui/icons-material/Groups';
+import SportsFootballIcon from '@mui/icons-material/SportsFootball';
+import { useUser } from '@/context/UserContext';
 
 const drawerWidth = 240;
 
@@ -36,15 +40,6 @@ const MENU_ITEMS = [
   { text: 'Player Database', href: '/players', icon: <GroupsIcon /> },
 ];
 
-import { useUser } from '@/context/UserContext';
-import {
-  Avatar,
-  Menu,
-  MenuItem as MuiMenuItem
-} from '@mui/material';
-
-// ... existing code ...
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useUser();
   const theme = useTheme();
@@ -52,14 +47,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const pathname = usePathname();
   
-  // Avatar Menu State
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
+
   const handleLogout = () => {
     handleClose();
     logout();
@@ -69,13 +66,50 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setMobileOpen(!mobileOpen);
   };
 
-// ... existing drawerContent ...
+  const drawerContent = (
+    <div>
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <SportsFootballIcon color="primary" />
+        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
+          FF Analytics
+        </Typography>
+      </Toolbar>
+      <Divider />
+      <List>
+        {MENU_ITEMS.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <ListItem key={item.text} disablePadding>
+              <Link href={item.href} passHref style={{ textDecoration: 'none', color: 'inherit', width: '100%' }}>
+                <ListItemButton 
+                  selected={isActive}
+                  onClick={() => isMobile && setMobileOpen(false)}
+                  sx={{
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                      '& .MuiListItemIcon-root': { color: 'inherit' }
+                    }
+                  }}
+                >
+                  <ListItemIcon sx={{ color: isActive ? 'inherit' : 'text.secondary' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </Link>
+            </ListItem>
+          );
+        })}
+      </List>
+    </div>
+  );
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       
-      {/* Top Bar */}
       <AppBar
         position="fixed"
         sx={{
@@ -101,7 +135,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {MENU_ITEMS.find(i => i.href === pathname)?.text || 'Fantasy Football'}
           </Typography>
 
-          {/* User Avatar */}
           {user && (
             <div>
               <IconButton
@@ -141,20 +174,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </Toolbar>
       </AppBar>
-// ... rest of component
 
-      {/* Navigation Drawer */}
       <Box
         component="nav"
         sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
         aria-label="mailbox folders"
       >
-        {/* Mobile Drawer (Temporary) */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }} // Better open performance on mobile.
+          ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -162,8 +192,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           {drawerContent}
         </Drawer>
-
-        {/* Desktop Drawer (Permanent) */}
         <Drawer
           variant="permanent"
           sx={{
@@ -176,7 +204,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Drawer>
       </Box>
 
-      {/* Main Content Area */}
       <Box
         component="main"
         sx={{
@@ -187,7 +214,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           bgcolor: 'background.default'
         }}
       >
-        <Toolbar /> {/* Spacer for fixed AppBar */}
+        <Toolbar />
         {children}
       </Box>
     </Box>
