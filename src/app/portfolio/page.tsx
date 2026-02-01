@@ -308,10 +308,6 @@ export default function PortfolioPage() {
             </Select>
           </FormControl>
 
-import Link from 'next/link'; // Add this import
-
-// ...
-
           <Button 
             variant="contained" 
             size="large" 
