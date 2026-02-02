@@ -41,7 +41,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Track in GA
-      sendGAEvent('event', 'login', { method: 'Sleeper', value: newUser.username });
+      sendGAEvent('event', 'login', { method: 'Sleeper', username: newUser.username });
     } else {
       localStorage.removeItem('sleeper_active_user');
     }
