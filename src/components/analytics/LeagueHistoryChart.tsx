@@ -42,6 +42,11 @@ type RawHistoryPoint = {
   data: Record<string, { actual: number; expected: number }>;
 };
 
+type OwnerMeta = {
+  id: string;
+  name: string;
+};
+
 export default function LeagueHistoryChart({ currentLeagueId }: Props) {
   const [loading, setLoading] = React.useState(true);
   const [progress, setProgress] = React.useState(0);
@@ -140,8 +145,8 @@ export default function LeagueHistoryChart({ currentLeagueId }: Props) {
               <XAxis dataKey="year" />
               <YAxis label={{ value: 'Wins', angle: -90, position: 'insideLeft' }} />
               <Tooltip 
-                formatter={(value: number, name: string) => [
-                  value.toFixed(2), 
+                formatter={(value: any, name: any) => [
+                  Number(value).toFixed(2), 
                   owners.find(o => o.id === name)?.name || name
                 ]}
                 labelFormatter={(label) => `Season ${label}`}

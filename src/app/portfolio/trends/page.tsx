@@ -329,10 +329,10 @@ export default function TrendsPage() {
               multiple
               options={playerOptions}
               filterOptions={filterOptions}
-              getOptionLabel={(option) => `${option.name} (${playerCountsByMode.get(option.id) || 0})`}
+              getOptionLabel={(option: any) => `${option.name} (${playerCountsByMode.get(option.id) || 0})`}
               value={playerOptions.filter(p => selectedPlayers.includes(p.id))}
               onChange={(_, newValue) => {
-                setSelectedPlayers(newValue.map(p => p.id));
+                setSelectedPlayers(newValue.map((p: any) => p.id));
               }}
               renderInput={(params) => (
                 <TextField 

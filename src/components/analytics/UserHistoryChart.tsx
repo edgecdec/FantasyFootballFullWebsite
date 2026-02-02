@@ -150,7 +150,7 @@ export default function UserHistoryChart({ userId }: Props) {
             <XAxis dataKey="year" />
             <YAxis label={{ value: 'Win %', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
             <Tooltip 
-                formatter={(value: number, name: string) => [value.toFixed(1) + '%', name]}
+                formatter={(value: any, name: any) => [value.toFixed(1) + '%', name]}
                 labelStyle={{ color: '#000' }}
             />
             <Legend />
