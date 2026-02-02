@@ -48,6 +48,7 @@ type Standing = {
   rosterId: number;
   ownerId: string;
   name: string;
+  teamName?: string;
   avatar: string;
   rank: number;
   madePlayoffs: boolean;
@@ -290,8 +291,15 @@ function LeagueRow({ item, onToggle, userId }: { item: LeaguePerformanceData, on
                       </TableCell>
                       <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
-                        {team.name}
-                        {team.ownerId === userId && <Chip label="YOU" size="small" color="primary" sx={{ height: 20 }} />}
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>{team.name}</Typography>
+                          {team.teamName && (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1 }}>
+                              {team.teamName}
+                            </Typography>
+                          )}
+                        </Box>
+                        {team.ownerId === userId && <Chip label="YOU" size="small" color="primary" sx={{ height: 20, ml: 1 }} />}
                       </TableCell>
                       <TableCell align="right">{team.pointsFor.toFixed(0)}</TableCell>
                       <TableCell align="right">
@@ -470,7 +478,8 @@ export default function PerformancePage() {
       return {
         rosterId: r.roster_id,
         ownerId: r.owner_id,
-        name: owner?.metadata?.team_name || owner?.display_name || `Team ${r.roster_id}`,
+        name: owner?.display_name || `Team ${r.roster_id}`,
+        teamName: owner?.metadata?.team_name,
         avatar: owner?.avatar || '',
         rank,
         madePlayoffs,

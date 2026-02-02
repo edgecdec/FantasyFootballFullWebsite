@@ -41,6 +41,7 @@ type RawHistoryPoint = {
 type OwnerMeta = {
   id: string;
   name: string;
+  teamName?: string;
 };
 
 type Averages = {
@@ -65,10 +66,16 @@ const CustomTooltip = ({ active, payload, label, owners }: any) => {
       <Paper sx={{ p: 1.5, bgcolor: 'rgba(20, 20, 20, 0.95)', border: '1px solid #333' }}>
         <Typography variant="subtitle2" sx={{ mb: 1, color: '#fff' }}>Season {label}</Typography>
         {sorted.map((entry: any) => {
-           const ownerName = owners.find((o: OwnerMeta) => o.id === entry.dataKey)?.name || entry.dataKey;
+           const owner = owners.find((o: OwnerMeta) => o.id === entry.dataKey);
+           const displayName = owner?.name || entry.dataKey;
+           const teamName = owner?.teamName;
+           
            return (
-             <Box key={entry.dataKey} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.5 }}>
-               <Typography variant="caption" sx={{ color: entry.color }}>{ownerName}</Typography>
+             <Box key={entry.dataKey} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 0.5 }}>
+               <Box>
+                 <Typography variant="caption" display="block" sx={{ color: entry.color, fontWeight: 'bold' }}>{displayName}</Typography>
+                 {teamName && <Typography variant="caption" display="block" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.65rem' }}>{teamName}</Typography>}
+               </Box>
                <Typography variant="caption" sx={{ color: '#fff', fontWeight: 'bold' }}>{Number(entry.value).toFixed(2)}</Typography>
              </Box>
            );
@@ -104,7 +111,7 @@ export default function LeagueHistoryPage() {
         const history = await SleeperService.getLeagueHistory(currentLeagueId);
         const total = history.length;
         const results: RawHistoryPoint[] = [];
-        const ownerMap = new Map<string, string>(); 
+        const ownerInfoMap = new Map<string, { name: string, teamName?: string }>(); 
         const ownerStatsMap = new Map<string, { sumExp: number; sumAct: number; sumPF: number; sumPA: number; count: number }>();
 
         for (let i = 0; i < total; i++) {
@@ -117,9 +124,15 @@ export default function LeagueHistoryPage() {
             const point: RawHistoryPoint = { year: season, data: {} };
             
             stats.standings.forEach(team => {
-              if (!ownerMap.has(team.ownerId)) {
-                ownerMap.set(team.ownerId, team.name);
+              // Update owner info (prefer latest)
+              if (!ownerInfoMap.has(team.ownerId)) {
+                ownerInfoMap.set(team.ownerId, { name: team.name, teamName: team.teamName });
               }
+              // If we are processing chronologically (oldest to newest would be better for "latest name"),
+              // but history is usually newest to oldest?
+              // `getLeagueHistory` returns history chain. Usually starting from current.
+              // So the first one we see IS the latest.
+              // So `!has` check is correct to keep latest.
               
               point.data[team.ownerId] = {
                 actual: team.actualWins,
@@ -148,7 +161,7 @@ export default function LeagueHistoryPage() {
           results.sort((a, b) => a.year - b.year);
           setRawData(results);
           
-          const uniqueOwners = Array.from(ownerMap.entries()).map(([id, name]) => ({ id, name }));
+          const uniqueOwners = Array.from(ownerInfoMap.entries()).map(([id, info]) => ({ id, ...info }));
           setOwners(uniqueOwners);
 
           const avgList: Averages[] = [];

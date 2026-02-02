@@ -238,7 +238,14 @@ function LeagueRow({ item, userId, onToggle, showAdvanced }: { item: LeagueData,
                     <TableRow key={team.rosterId} selected={team.ownerId === userId}>
                       <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar src={`https://sleepercdn.com/avatars/${team.avatar}`} sx={{ width: 24, height: 24 }} />
-                        {team.name}
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>{team.name}</Typography>
+                          {team.teamName && (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1 }}>
+                              {team.teamName}
+                            </Typography>
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell align="right">{team.actualWins}</TableCell>
                       <TableCell align="right">{team.expectedWins.toFixed(2)}</TableCell>

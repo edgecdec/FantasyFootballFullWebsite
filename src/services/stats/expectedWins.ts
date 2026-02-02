@@ -4,6 +4,7 @@ export type TeamStats = {
   rosterId: number;
   ownerId: string;
   name: string;
+  teamName?: string;
   avatar: string;
   actualWins: number;
   expectedWins: number;
@@ -41,7 +42,8 @@ export async function analyzeLeague(league: SleeperLeague, userId?: string): Pro
     rosterMap.set(r.roster_id, {
       rosterId: r.roster_id,
       ownerId: r.owner_id,
-      name: owner?.metadata?.team_name || owner?.display_name || `Team ${r.roster_id}`,
+      name: owner?.display_name || `Team ${r.roster_id}`,
+      teamName: owner?.metadata?.team_name,
       avatar: owner?.avatar || '',
       actualWins: r.settings.wins,
       expectedWins: 0,

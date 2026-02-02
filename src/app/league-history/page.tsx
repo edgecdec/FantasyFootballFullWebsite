@@ -32,6 +32,7 @@ import PageHeader from '@/components/common/PageHeader';
 type MemberHistory = {
   userId: string;
   displayName: string;
+  teamName?: string;
   avatar: string;
   totalWins: number;
   totalLosses: number;
@@ -57,7 +58,10 @@ function H2HMatrix({ members, mode }: { members: MemberHistory[], mode: 'record'
             <TableCell sx={{ bgcolor: 'background.paper', zIndex: 3, left: 0, position: 'sticky' }}>Owner</TableCell>
             {sortedMembers.map(m => (
               <TableCell key={m.userId} align="center" sx={{ minWidth: 60 }}>
-                <Tooltip title={m.displayName}>
+                <Tooltip title={<>
+                  <Typography variant="body2">{m.displayName}</Typography>
+                  {m.teamName && <Typography variant="caption" color="rgba(255,255,255,0.7)">{m.teamName}</Typography>}
+                </>}>
                   <Avatar src={`https://sleepercdn.com/avatars/${m.avatar}`} sx={{ width: 24, height: 24, mx: 'auto' }} />
                 </Tooltip>
               </TableCell>
@@ -70,7 +74,14 @@ function H2HMatrix({ members, mode }: { members: MemberHistory[], mode: 'record'
               <TableCell sx={{ bgcolor: 'background.paper', zIndex: 2, left: 0, position: 'sticky', fontWeight: 'bold' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Avatar src={`https://sleepercdn.com/avatars/${row.avatar}`} sx={{ width: 24, height: 24 }} />
-                  <Typography variant="caption" noWrap sx={{ maxWidth: 100 }}>{row.displayName}</Typography>
+                  <Box>
+                    <Typography variant="caption" display="block" noWrap sx={{ maxWidth: 100, fontWeight: 'bold' }}>{row.displayName}</Typography>
+                    {row.teamName && (
+                        <Typography variant="caption" display="block" noWrap sx={{ maxWidth: 100, fontSize: '0.65rem', color: 'text.secondary', fontWeight: 'normal' }}>
+                            {row.teamName}
+                        </Typography>
+                    )}
+                  </Box>
                 </Box>
               </TableCell>
               
@@ -217,6 +228,7 @@ export default function LeagueHistoryPage() {
             memberMap.set(r.owner_id, {
               userId: r.owner_id,
               displayName: u?.display_name || 'Unknown',
+              teamName: u?.metadata?.team_name,
               avatar: u?.avatar || '',
               totalWins: 0,
               totalLosses: 0,
@@ -232,6 +244,7 @@ export default function LeagueHistoryPage() {
           const u = users.find((x: any) => x.user_id === r.owner_id);
           if (u) {
             m.displayName = u.display_name;
+            m.teamName = u.metadata?.team_name;
             m.avatar = u.avatar;
           }
         });
