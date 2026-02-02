@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { sendGAEvent } from '@next/third-parties/google';
 import { SleeperUser, SleeperService } from '@/services/sleeper/sleeperService';
 
 interface UserContextType {
@@ -40,12 +41,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Track in GA
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'login', {
-          method: 'Sleeper',
-          username: newUser.username
-        });
-      }
+      sendGAEvent('event', 'login', { method: 'Sleeper', value: newUser.username });
     } else {
       localStorage.removeItem('sleeper_active_user');
     }
