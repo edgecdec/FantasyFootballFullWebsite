@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Container,
   Box,
@@ -22,6 +23,7 @@ import {
   Chip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import HistoryIcon from '@mui/icons-material/History';
 import {
   BarChart,
   Bar,
@@ -156,6 +158,17 @@ export default function PositionalBenchmarksPage() {
       <PageHeader 
         title="Positional Benchmarks" 
         subtitle="Compare your positional scoring output against league averages to identify roster strengths and weaknesses."
+        action={
+          <Link href="/performance/positional/history" passHref>
+            <Button
+              variant="outlined"
+              startIcon={<HistoryIcon />}
+              sx={{ height: 40 }}
+            >
+              Historical Analysis
+            </Button>
+          </Link>
+        }
       />
 
       {/* Controls */}
@@ -203,7 +216,7 @@ export default function PositionalBenchmarksPage() {
                 <Tooltip 
                   cursor={{ fill: 'transparent' }}
                   contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }}
-                  formatter={(val: number) => `${val > 0 ? '+' : ''}${val.toFixed(1)}%`}
+                  formatter={(val: any) => `${val > 0 ? '+' : ''}${Number(val).toFixed(1)}%`}
                 />
                 <ReferenceLine x={0} stroke="#fff" />
                 <Bar dataKey="diff" name="% Diff">
@@ -223,7 +236,7 @@ export default function PositionalBenchmarksPage() {
           <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>League Details</Typography>
           <Grid container spacing={3}>
             {results.map((res) => (
-              <Grid item xs={12} key={res.leagueId}>
+              <Grid size={{ xs: 12 }} key={res.leagueId}>
                 <Accordion>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Typography variant="h6">{res.leagueName}</Typography>
@@ -231,7 +244,7 @@ export default function PositionalBenchmarksPage() {
                   <AccordionDetails>
                     <Grid container spacing={4}>
                       {/* Chart 1: Total Output */}
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <Typography variant="subtitle1" gutterBottom align="center">Average Weekly Output</Typography>
                         <Box sx={{ height: 300 }}>
                           <ResponsiveContainer>
@@ -255,7 +268,7 @@ export default function PositionalBenchmarksPage() {
                       </Grid>
 
                       {/* Chart 2: Efficiency */}
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <Typography variant="subtitle1" gutterBottom align="center">Efficiency (Points Per Start)</Typography>
                         <Box sx={{ height: 300 }}>
                           <ResponsiveContainer>
