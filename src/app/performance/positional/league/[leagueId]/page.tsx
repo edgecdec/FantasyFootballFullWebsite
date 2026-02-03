@@ -393,6 +393,7 @@ export default function LeaguePositionalPage() {
                 maxItems={10}
                 mode="carriers"
                 title={mode === 'current' ? "League MVPs (Season)" : "All-Time League Legends"}
+                onViewAll={() => setShowImpactModal(true)}
               />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
