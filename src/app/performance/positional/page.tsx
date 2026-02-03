@@ -58,6 +58,8 @@ import { analyzePositionalBenchmarks, LeagueBenchmarkResult } from '@/services/s
 import PageHeader from '@/components/common/PageHeader';
 import UserSearchInput from '@/components/common/UserSearchInput';
 import YearSelector from '@/components/common/YearSelector';
+import SkillProfileChart, { AggregatePositionStats } from '@/components/performance/SkillProfileChart';
+import PlayerImpactList from '@/components/performance/PlayerImpactList';
 
 const VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
@@ -428,10 +430,16 @@ export default function PositionalBenchmarksPage() {
                                       </Grid>
                                     </Grid>
                 
-                                    <Box sx={{ mt: 2, textAlign: 'center' }}>
+                                    <Box sx={{ mt: 2, textAlign: 'center', display: 'flex', gap: 2, justifyContent: 'center' }}>
                                       <Button variant="outlined" size="small" onClick={() => setImpactsModalData(res.playerImpacts)}>
                                         View All League Players
                                       </Button>
+                                      
+                                      <Link href={`/performance/positional/league/${res.leagueId}`} passHref>
+                                        <Button variant="contained" size="small" color="primary">
+                                          Full League Report
+                                        </Button>
+                                      </Link>
                                     </Box>
                                   </AccordionDetails>          </Accordion>
         </Box>
@@ -501,95 +509,20 @@ export default function PositionalBenchmarksPage() {
         <Grid container spacing={4} sx={{ mb: 4 }}>
           {/* Chart */}
           <Grid size={{ xs: 12, lg: 8 }}>
-            <Paper sx={{ p: 3, height: '100%', bgcolor: '#1e293b' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Box>
-                    <Typography variant="h5" gutterBottom color="white">Overall "Skill Profile"</Typography>
-                    <Typography variant="body2" color="rgba(255,255,255,0.7)">
-                        Your average {metric === 'total' ? 'scoring surplus/deficit' : 'efficiency gap'} across all leagues.
-                    </Typography>
-                </Box>
-                
-                <ToggleButtonGroup
-                    value={metric}
-                    exclusive
-                    onChange={(_, v) => v && setMetric(v)}
-                    size="small"
-                    sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}
-                >
-                    <ToggleButton value="total" sx={{ color: 'white', '&.Mui-selected': { bgcolor: 'primary.main', color: 'white' } }}>
-                        Total Output
-                    </ToggleButton>
-                    <ToggleButton value="efficiency" sx={{ color: 'white', '&.Mui-selected': { bgcolor: 'primary.main', color: 'white' } }}>
-                        Efficiency
-                    </ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-              
-              <Box sx={{ height: 400, width: '100%' }}>
-                <ResponsiveContainer>
-                  <BarChart data={aggregateData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#444" horizontal={false} />
-                    <XAxis type="number" stroke="#888" unit="%" />
-                    <YAxis dataKey="position" type="category" stroke="#fff" width={50} />
-                    <RechartsTooltip content={<CustomTooltip metric={metric} />} />
-                    <ReferenceLine x={0} stroke="#fff" />
-                    <Bar dataKey={metric === 'total' ? 'diffPct' : 'diffEffPct'} name="% Diff">
-                      {aggregateData.map((entry, index) => {
-                        const val = metric === 'total' ? entry.diffPct : entry.diffEffPct;
-                        return <Cell key={`cell-${index}`} fill={val > 0 ? '#66bb6a' : '#ef5350'} />;
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </Paper>
+            <SkillProfileChart 
+              data={aggregateData} 
+              metric={metric} 
+              onMetricChange={setMetric} 
+            />
           </Grid>
 
           {/* Global Impact (MVPs) */}
           <Grid size={{ xs: 12, lg: 4 }}>
-            <Paper sx={{ p: 3, height: '100%' }}>
-              <Typography variant="h6" gutterBottom>Portfolio MVPs & LVPs</Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                Players who gained/lost you the most points vs position average across all leagues.
-              </Typography>
-              
-              <Typography variant="subtitle2" color="success.main" gutterBottom sx={{ mt: 2 }}>Top Contributors (Carriers)</Typography>
-              {globalImpacts.slice(0, 4).map((p) => (
-                <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, p: 1, borderLeft: '4px solid #66bb6a', bgcolor: 'background.default' }}>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{p.position} • {p.weeks} starts</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="body2" fontWeight="bold" color="#66bb6a">+{p.totalPOLA.toFixed(1)}</Typography>
-                    <Typography variant="caption" color="text.secondary">+{p.avgPOLA.toFixed(1)} / wk</Typography>
-                  </Box>
-                </Box>
-              ))}
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" color="error.main" gutterBottom>Biggest Anchors</Typography>
-              {[...globalImpacts].reverse().slice(0, 4).map((p) => (
-                <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, p: 1, borderLeft: '4px solid #ef5350', bgcolor: 'background.default' }}>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{p.position} • {p.weeks} starts</Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="body2" fontWeight="bold" color="#ef5350">{p.totalPOLA.toFixed(1)}</Typography>
-                    <Typography variant="caption" color="text.secondary">{p.avgPOLA.toFixed(1)} / wk</Typography>
-                  </Box>
-                </Box>
-              ))}
-              
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Button variant="outlined" size="small" onClick={() => setImpactsModalData(globalImpacts)}>
-                  View All Players
-                </Button>
-              </Box>
-            </Paper>
+            <PlayerImpactList 
+              impacts={globalImpacts} 
+              title="Portfolio MVPs & LVPs"
+              onViewAll={() => setImpactsModalData(globalImpacts)}
+            />
           </Grid>
         </Grid>
       )}
