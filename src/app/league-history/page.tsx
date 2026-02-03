@@ -36,10 +36,10 @@ import YearSelector from '@/components/common/YearSelector';
 // --- Sub-Components ---
 
 function StandingsTable({ members }: { members: MemberHistoryStats[] }) {
-  const [orderBy, setOrderBy] = React.useState<keyof MemberHistoryStats>('regWins');
+  const [orderBy, setOrderBy] = React.useState<keyof MemberHistoryStats | 'winPct' | 'avgFinish'>('regWins');
   const [order, setOrder] = React.useState<'asc' | 'desc'>('desc');
 
-  const handleSort = (property: keyof MemberHistoryStats) => {
+  const handleSort = (property: keyof MemberHistoryStats | 'winPct' | 'avgFinish') => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
@@ -47,8 +47,28 @@ function StandingsTable({ members }: { members: MemberHistoryStats[] }) {
 
   const sorted = React.useMemo(() => {
     return [...members].sort((a, b) => {
-      const valA = a[orderBy] as number;
-      const valB = b[orderBy] as number;
+      let valA = 0;
+      let valB = 0;
+
+      if (orderBy === 'winPct') {
+        const totalA = a.regWins + a.regLosses + a.regTies;
+        valA = totalA > 0 ? (a.regWins / totalA) : 0;
+        const totalB = b.regWins + b.regLosses + b.regTies;
+        valB = totalB > 0 ? (b.regWins / totalB) : 0;
+      } else if (orderBy === 'avgFinish') {
+        valA = a.seasonsPlayed > 0 ? (a.sumFinalRanks / a.seasonsPlayed) : 999;
+        valB = b.seasonsPlayed > 0 ? (b.sumFinalRanks / b.seasonsPlayed) : 999;
+        // For avgFinish, lower is better. If standard sort is 'desc' (High to Low), we want 'asc' by default.
+        // But the sorter uses `order`. If order is 'asc', it does A - B.
+        // If I want 1st place to be at top in Descending mode? No, usually Desc means Big Number First.
+        // For Rank, Desc means 12, 11, ... 1. Asc means 1, 2, ... 12.
+        // So for Rank, we want 'asc' sort to show 1st place first.
+        // Let's keep standard math and user can toggle.
+      } else {
+        valA = a[orderBy] as number;
+        valB = b[orderBy] as number;
+      }
+
       return order === 'asc' ? valA - valB : valB - valA;
     });
   }, [members, orderBy, order]);
@@ -69,8 +89,10 @@ function StandingsTable({ members }: { members: MemberHistoryStats[] }) {
                 Reg W-L
               </TableSortLabel>
             </TableCell>
-            <TableCell align="right" sortDirection={orderBy === 'regWins' ? order : false}> {/* Sort by wins proxy for % */}
-               Win %
+            <TableCell align="right" sortDirection={orderBy === 'winPct' ? order : false}>
+              <TableSortLabel active={orderBy === 'winPct'} direction={orderBy === 'winPct' ? order : 'asc'} onClick={() => handleSort('winPct')}>
+                Win %
+              </TableSortLabel>
             </TableCell>
             <TableCell align="right" sortDirection={orderBy === 'totalPF' ? order : false}>
               <TableSortLabel active={orderBy === 'totalPF'} direction={orderBy === 'totalPF' ? order : 'asc'} onClick={() => handleSort('totalPF')}>
@@ -87,7 +109,11 @@ function StandingsTable({ members }: { members: MemberHistoryStats[] }) {
                 Titles
               </TableSortLabel>
             </TableCell>
-            <TableCell align="right">Avg Finish</TableCell>
+            <TableCell align="right" sortDirection={orderBy === 'avgFinish' ? order : false}>
+              <TableSortLabel active={orderBy === 'avgFinish'} direction={orderBy === 'avgFinish' ? order : 'asc'} onClick={() => handleSort('avgFinish')}>
+                Avg Finish
+              </TableSortLabel>
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -109,7 +135,7 @@ function StandingsTable({ members }: { members: MemberHistoryStats[] }) {
                 </TableCell>
                 <TableCell align="right">{m.seasonsPlayed}</TableCell>
                 <TableCell align="right">{m.regWins}-{m.regLosses}{m.regTies > 0 ? `-${m.regTies}` : ''}</TableCell>
-                <TableCell align="right">{winPct}%</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{winPct}%</TableCell>
                 <TableCell align="right">{m.totalPF.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                 <TableCell align="right">{m.playoffWins}-{m.playoffLosses}</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 'bold', color: m.championships > 0 ? 'gold' : 'inherit' }}>
@@ -184,89 +210,6 @@ function H2HMatrix({ members, mode }: { members: MemberHistoryStats[], mode: 're
                 return (
                   <TableCell key={col.userId} align="center" sx={{ bgcolor: color, fontSize: '0.75rem' }}>
                     {content}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
-function PositionalHeatmap({ members }: { members: MemberHistoryStats[] }) {
-  const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-  
-  // Calculate League Averages per Position (Total Points / Seasons)
-  // Wait, some members play fewer seasons.
-  // We should calculate Avg Points PER SEASON per Position.
-  
-  const heatmapData = React.useMemo(() => {
-    // 1. Calculate Average Per Season for each Member
-    const memberAvgs = members.map(m => {
-      const avgs: Record<string, number> = {};
-      POSITIONS.forEach(p => {
-        avgs[p] = m.seasonsPlayed > 0 ? (m.positionalPoints[p] || 0) / m.seasonsPlayed : 0;
-      });
-      return { ...m, avgs };
-    });
-
-    // 2. Calculate League Baseline (Avg of Member Avgs)
-    const leagueBaselines: Record<string, number> = {};
-    POSITIONS.forEach(p => {
-      const sum = memberAvgs.reduce((acc, m) => acc + m.avgs[p], 0);
-      leagueBaselines[p] = sum / (memberAvgs.length || 1);
-    });
-
-    return { memberAvgs, leagueBaselines };
-  }, [members]);
-
-  const { memberAvgs, leagueBaselines } = heatmapData;
-
-  // Sort by Total Points (roughly)
-  const sortedMembers = [...memberAvgs].sort((a, b) => b.totalPF - a.totalPF);
-
-  return (
-    <TableContainer component={Paper}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Manager</TableCell>
-            {POSITIONS.map(p => <TableCell key={p} align="center">{p}</TableCell>)}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {sortedMembers.map(m => (
-            <TableRow key={m.userId}>
-              <TableCell component="th" scope="row">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Avatar src={`https://sleepercdn.com/avatars/${m.avatar}`} sx={{ width: 24, height: 24 }} />
-                  <Typography variant="body2">{m.displayName}</Typography>
-                </Box>
-              </TableCell>
-              {POSITIONS.map(p => {
-                const val = m.avgs[p];
-                const baseline = leagueBaselines[p];
-                const diff = val - baseline;
-                const pctDiff = baseline > 0 ? diff / baseline : 0;
-                
-                // Color Logic: +/- 20%
-                // Red (-0.2) -> White (0) -> Green (+0.2)
-                let bgColor = 'transparent';
-                if (pctDiff > 0) {
-                   const intensity = Math.min(pctDiff / 0.3, 1); // Cap at 30% better
-                   bgColor = `rgba(76, 175, 80, ${intensity * 0.5})`; 
-                } else {
-                   const intensity = Math.min(Math.abs(pctDiff) / 0.3, 1);
-                   bgColor = `rgba(244, 67, 54, ${intensity * 0.5})`;
-                }
-
-                return (
-                  <TableCell key={p} align="center" sx={{ bgcolor: bgColor }}>
-                    <Tooltip title={`${val.toFixed(0)} avg pts (${diff > 0 ? '+' : ''}${diff.toFixed(0)} vs avg)`}>
-                      <span>{val.toFixed(0)}</span>
-                    </Tooltip>
                   </TableCell>
                 );
               })}
@@ -425,7 +368,6 @@ export default function LeagueHistoryPage() {
           >
             <Tab label="Historical Standings" />
             <Tab label="Head-to-Head Matrix" />
-            <Tab label="Positional Heatmap" />
           </Tabs>
 
           <Box sx={{ p: 2 }}>
@@ -447,8 +389,6 @@ export default function LeagueHistoryPage() {
                 <H2HMatrix members={result.members} mode={h2hMode} />
               </Box>
             )}
-
-            {tab === 2 && <PositionalHeatmap members={result.members} />}
           </Box>
         </Paper>
       )}
