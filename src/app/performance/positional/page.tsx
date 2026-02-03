@@ -401,6 +401,45 @@ export default function PositionalBenchmarksPage() {
                         </Box>
                       </Grid>
                     </Grid>
+
+                    <Divider sx={{ my: 3 }} />
+                    
+                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>Player Impact (Points Over League Avg)</Typography>
+                    <Grid container spacing={4}>
+                      {/* Top Contributors */}
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>Top Contributors (Carriers)</Typography>
+                        {res.playerImpacts.slice(0, 5).map((p) => (
+                          <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1 }}>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">{p.position} • {p.weeksStarted} starts</Typography>
+                            </Box>
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography variant="body2" fontWeight="bold" color="#66bb6a">+{p.totalPOLA.toFixed(1)}</Typography>
+                              <Typography variant="caption" color="text.secondary">+{p.avgPOLA.toFixed(1)} / wk</Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Grid>
+
+                      {/* Underperformers */}
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>Underperformers (Anchors)</Typography>
+                        {[...res.playerImpacts].reverse().slice(0, 5).map((p) => (
+                          <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, p: 1, bgcolor: 'rgba(239, 83, 80, 0.1)', borderRadius: 1 }}>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">{p.position} • {p.weeksStarted} starts</Typography>
+                            </Box>
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography variant="body2" fontWeight="bold" color="#ef5350">{p.totalPOLA.toFixed(1)}</Typography>
+                              <Typography variant="caption" color="text.secondary">{p.avgPOLA.toFixed(1)} / wk</Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Grid>
+                    </Grid>
                   </AccordionDetails>
                 </Accordion>
               </Grid>
