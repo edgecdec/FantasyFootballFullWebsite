@@ -251,7 +251,7 @@ export default function LuckTrendsPage() {
           
           <Box sx={{ mt: 2, textAlign: 'center' }}>
              <Typography variant="caption" color="text.secondary">
-               * Calculated using aggregate All-Play record across all leagues for each year.
+               * Calculated using aggregate All-Play vs Actual record across all leagues for each year.
              </Typography>
           </Box>
         </Paper>
