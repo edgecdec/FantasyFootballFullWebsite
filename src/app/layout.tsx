@@ -6,8 +6,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import { UserProvider } from '@/context/UserContext';
 
 export const metadata: Metadata = {
-  title: 'Fantasy Football Analytics',
-  description: 'Advanced fantasy football tools and rankings',
+  title: 'Declan Fantasy Football',
+  description: 'Advanced fantasy football analytics, tools, and rankings for every manager.',
 };
 
 export default function RootLayout({

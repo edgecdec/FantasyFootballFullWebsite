@@ -82,7 +82,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <SportsFootballIcon color="primary" />
         <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
-          FF Analytics
+          Declan FF
         </Typography>
         <Chip label="BETA" color="secondary" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }} />
       </Toolbar>
@@ -144,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </IconButton>
           
           <Typography variant="h6" noWrap component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
-            {MENU_ITEMS.find(i => i.href === pathname)?.text || 'Fantasy Football'}
+            {MENU_ITEMS.find(i => i.href === pathname)?.text || 'Declan FF'}
             <Chip 
               label="BETA" 
               color="error" 
