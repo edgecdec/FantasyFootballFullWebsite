@@ -22,7 +22,8 @@ import {
   Avatar,
   Menu,
   MenuItem as MuiMenuItem,
-  Chip
+  Chip,
+  Tooltip
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
@@ -33,6 +34,7 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices'; // Medic
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'; // Performance
 import HistoryIcon from '@mui/icons-material/History'; // Legacy
 import BarChartIcon from '@mui/icons-material/BarChart'; // Positional
+import BugReportIcon from '@mui/icons-material/BugReport';
 import SportsFootballIcon from '@mui/icons-material/SportsFootball'; // Brand icon
 import { useUser } from '@/context/UserContext';
 
@@ -155,6 +157,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               }} 
             />
           </Typography>
+
+          <Tooltip title="Report a Bug">
+            <IconButton
+              component={Link}
+              href="https://github.com/edgecdec/FantasyFootballFullWebsite/issues/new"
+              target="_blank"
+              color="inherit"
+              sx={{ mr: 1 }}
+            >
+              <BugReportIcon />
+            </IconButton>
+          </Tooltip>
 
           {user && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
