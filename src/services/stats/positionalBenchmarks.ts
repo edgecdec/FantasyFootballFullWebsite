@@ -18,6 +18,8 @@ export type PlayerImpact = {
   totalPOLA: number;
   weeksStarted: number;
   avgPOLA: number;
+  ownerId: string;
+  ownerName: string;
 };
 
 export type LeagueBenchmarkResult = {
@@ -133,16 +135,13 @@ export async function analyzePositionalBenchmarks(
   // Map<UserId, weeksPlayed>
   const userWeeksPlayed = new Map<string, number>();
 
-  // Player Impacts (Only for the requested userId to save memory/complexity for now? 
-  // No, the request was just for heatmap of SKILL PROFILE. 
-  // Calculating individual player impacts for everyone is heavy.
-  // I will keep Player Impacts JUST for the requested user for now.)
-  const myPlayerImpactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string }>();
+  // Player Impacts (For everyone now)
+  // Key: `${userId}_${playerId}`
+  const allPlayerImpactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string, ownerId: string }>();
 
   allWeeksMatchups.forEach((weekMatchups, weekIdx) => {
     
     // Pre-calculate baseline per starter for this week (Efficiency)
-    // We need this for Player Impact calculation (POLA)
     const weekAvgPerStarter = new Map<string, number>();
     const weekPosTotals = new Map<string, { points: number, count: number }>();
     
@@ -201,21 +200,21 @@ export async function analyzePositionalBenchmarks(
             posStats.points += points;
             posStats.count += 1;
 
-            // Update Player Impact (ONLY for target User)
-            if (uid === userId) {
-                const baseline = weekAvgPerStarter.get(position) || 0;
-                const impact = points - baseline;
-                
-                const pImpact = myPlayerImpactMap.get(playerId) || { 
-                    totalPOLA: 0, 
-                    weeks: 0, 
-                    name: pData ? `${pData.first_name} ${pData.last_name}` : 'Unknown',
-                    pos: position
-                };
-                pImpact.totalPOLA += impact;
-                pImpact.weeks += 1;
-                myPlayerImpactMap.set(playerId, pImpact);
-            }
+            // Update Player Impact
+            const baseline = weekAvgPerStarter.get(position) || 0;
+            const impact = points - baseline;
+            
+            const key = `${uid}_${playerId}`;
+            const pImpact = allPlayerImpactMap.get(key) || { 
+                totalPOLA: 0, 
+                weeks: 0, 
+                name: pData ? `${pData.first_name} ${pData.last_name}` : 'Unknown',
+                pos: position,
+                ownerId: uid
+            };
+            pImpact.totalPOLA += impact;
+            pImpact.weeks += 1;
+            allPlayerImpactMap.set(key, pImpact);
         });
     });
   });
@@ -289,14 +288,20 @@ export async function analyzePositionalBenchmarks(
     };
   });
 
-  const playerImpacts: PlayerImpact[] = Array.from(myPlayerImpactMap.entries()).map(([pid, val]) => ({
-      playerId: pid,
-      name: val.name,
-      position: val.pos,
-      totalPOLA: val.totalPOLA,
-      weeksStarted: val.weeks,
-      avgPOLA: val.totalPOLA / val.weeks
-  })).sort((a, b) => b.totalPOLA - a.totalPOLA); 
+  const playerImpacts: PlayerImpact[] = Array.from(allPlayerImpactMap.entries()).map(([key, val]) => {
+      // Split key back if needed, but we stored data in val
+      const ownerMeta = userMeta.get(val.ownerId);
+      return {
+          playerId: key.split('_')[1], // Original playerId
+          name: val.name,
+          position: val.pos,
+          totalPOLA: val.totalPOLA,
+          weeksStarted: val.weeks,
+          avgPOLA: val.totalPOLA / val.weeks,
+          ownerId: val.ownerId,
+          ownerName: ownerMeta?.displayName || 'Unknown'
+      };
+  }).sort((a, b) => b.totalPOLA - a.totalPOLA); 
 
   return {
     leagueId: league.league_id,

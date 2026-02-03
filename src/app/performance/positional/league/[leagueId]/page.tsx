@@ -20,9 +20,12 @@ import {
   TableHead,
   TableRow,
   Avatar,
-  Tooltip
+  Tooltip,
+  Modal,
+  IconButton
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
 import { useUser } from '@/context/UserContext';
 import { SleeperService, SleeperLeague } from '@/services/sleeper/sleeperService';
 import { analyzePositionalBenchmarks, LeagueBenchmarkResult, PositionStats } from '@/services/stats/positionalBenchmarks';
@@ -56,6 +59,7 @@ export default function LeaguePositionalPage() {
   const [impacts, setImpacts] = React.useState<PlayerImpact[]>([]);
   const [heatmapData, setHeatmapData] = React.useState<LeagueHeatmapData[]>([]);
   const [metric, setMetric] = React.useState<'total' | 'efficiency'>('efficiency');
+  const [showImpactModal, setShowImpactModal] = React.useState(false);
 
   React.useEffect(() => {
     if (leagueId) fetchLeagueInfo();
@@ -182,24 +186,32 @@ export default function LeaguePositionalPage() {
     setAggData(chartData);
 
     // 2. Aggregate Player Impacts
-    const impactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string }>();
+    const impactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string, ownerName: string }>();
     
     results.forEach(res => {
       res.playerImpacts.forEach(p => {
-        const curr = impactMap.get(p.playerId) || { totalPOLA: 0, weeks: 0, name: p.name, pos: p.position };
+        const key = `${p.ownerId}_${p.playerId}`;
+        const curr = impactMap.get(key) || { 
+            totalPOLA: 0, 
+            weeks: 0, 
+            name: p.name, 
+            pos: p.position,
+            ownerName: p.ownerName
+        };
         curr.totalPOLA += p.totalPOLA;
         curr.weeks += (p.weeksStarted || 0);
-        impactMap.set(p.playerId, curr);
+        impactMap.set(key, curr);
       });
     });
 
-    const impactList: PlayerImpact[] = Array.from(impactMap.entries()).map(([id, val]) => ({
-      playerId: id,
+    const impactList: PlayerImpact[] = Array.from(impactMap.entries()).map(([key, val]) => ({
+      playerId: key.split('_')[1],
       name: val.name,
       position: val.pos,
       totalPOLA: val.totalPOLA,
-      weeksStarted: val.weeks,
-      avgPOLA: val.totalPOLA / (val.weeks || 1)
+      weeks: val.weeks,
+      avgPOLA: val.totalPOLA / (val.weeks || 1),
+      ownerName: val.ownerName
     })).sort((a, b) => b.totalPOLA - a.totalPOLA);
 
     setImpacts(impactList);
@@ -315,8 +327,8 @@ export default function LeaguePositionalPage() {
 
       {!loading && aggData.length > 0 && (
         <Grid container spacing={4}>
-          {/* Top Row: Heatmap & Legends */}
-          <Grid size={{ xs: 12, lg: 8 }}>
+          {/* Top Row: Heatmap */}
+          <Grid size={{ xs: 12 }}>
             <Paper sx={{ p: 3, overflow: 'hidden', height: '100%' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6">League Skill Heatmap</Typography>
@@ -373,25 +385,92 @@ export default function LeaguePositionalPage() {
             </Paper>
           </Grid>
 
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <PlayerImpactList 
-              impacts={impacts} 
-              maxItems={10}
-              title={mode === 'current' ? "Season Impact" : "All-Time Legends & Busts"}
-            />
-          </Grid>
-
-          {/* Bottom Row: Detailed Chart */}
-          <Grid size={{ xs: 12 }}>
-            <SkillProfileChart 
-              data={aggData} 
-              metric={metric} 
-              onMetricChange={setMetric} 
-              height={400}
-            />
-          </Grid>
+            {/* Bottom Row: Legends & Busts */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <PlayerImpactList 
+                impacts={impacts} 
+                maxItems={10}
+                mode="carriers"
+                title={mode === 'current' ? "League MVPs (Season)" : "All-Time League Legends"}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <PlayerImpactList 
+                impacts={impacts} 
+                maxItems={10}
+                mode="anchors"
+                title={mode === 'current' ? "League LVPs (Season)" : "All-Time League Anchors"}
+                onViewAll={() => setShowImpactModal(true)}
+              />
+            </Grid>
         </Grid>
       )}
+
+      {/* All Players Modal */}
+      <Modal
+        open={showImpactModal}
+        onClose={() => setShowImpactModal(false)}
+        aria-labelledby="all-impacts-modal"
+      >
+        <Paper sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: 900,
+          bgcolor: 'background.paper',
+          boxShadow: 24,
+          p: 4,
+          maxHeight: '90vh',
+          overflowY: 'auto'
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5" component="h2">
+              All Player Impacts (League Wide)
+            </Typography>
+            <IconButton onClick={() => setShowImpactModal(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Cumulative Points Over League Average (POLA).
+          </Typography>
+          
+          <TableContainer>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Rank</TableCell>
+                  <TableCell>Player</TableCell>
+                  <TableCell>Manager</TableCell>
+                  <TableCell>Pos</TableCell>
+                  <TableCell align="right">Starts</TableCell>
+                  <TableCell align="right">Total Impact</TableCell>
+                  <TableCell align="right">Avg Impact/Wk</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {impacts.map((p, index) => (
+                  <TableRow key={`${p.playerId}-${p.ownerName}`} hover>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{p.name}</TableCell>
+                    <TableCell>{p.ownerName}</TableCell>
+                    <TableCell>{p.position}</TableCell>
+                    <TableCell align="right">{p.weeksStarted || p.weeks}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold', color: p.totalPOLA > 0 ? 'success.main' : 'error.main' }}>
+                      {p.totalPOLA > 0 ? '+' : ''}{p.totalPOLA.toFixed(1)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                      {p.avgPOLA > 0 ? '+' : ''}{p.avgPOLA.toFixed(1)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      </Modal>
     </Container>
   );
 }
