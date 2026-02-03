@@ -78,7 +78,7 @@ function SummaryCard({ data, showAdvanced }: { data: LeagueData[], showAdvanced:
       <CardContent>
         <Grid container spacing={4} textAlign="center">
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Actual Record</Typography>
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>Actual</Typography>
             <Typography variant="h3" fontWeight="bold">
               {totalActual.toFixed(0)} <Typography component="span" variant="h5" sx={{ color: 'rgba(255,255,255,0.5)' }}>Wins</Typography>
             </Typography>

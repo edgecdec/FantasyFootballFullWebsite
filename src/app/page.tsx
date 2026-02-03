@@ -60,7 +60,7 @@ export default function HomePage() {
         ) : (
           <Box sx={{ maxWidth: 500, mx: 'auto', mb: 6 }}>
             <Typography variant="h2" component="h1" gutterBottom fontWeight="bold">
-              Declan Fantasy Football Analytics
+              Declan Analytics
             </Typography>
             <Typography variant="h6" color="text.secondary" sx={{ mb: 4 }}>
               Enter your Sleeper username to unlock personalized insights.
