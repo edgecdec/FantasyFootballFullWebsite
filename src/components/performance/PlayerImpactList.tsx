@@ -12,6 +12,7 @@ export type PlayerImpact = {
   weeks?: number;
   avgPOLA: number;
   ownerName?: string;
+  ownerId?: string;
 };
 
 type Props = {

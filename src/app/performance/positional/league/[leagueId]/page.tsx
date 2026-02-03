@@ -32,6 +32,7 @@ import { analyzePositionalBenchmarks, LeagueBenchmarkResult, PositionStats } fro
 import PageHeader from '@/components/common/PageHeader';
 import SkillProfileChart, { AggregatePositionStats } from '@/components/performance/SkillProfileChart';
 import PlayerImpactList, { PlayerImpact } from '@/components/performance/PlayerImpactList';
+import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
 
 const VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
@@ -41,6 +42,8 @@ type LeagueHeatmapData = {
   avatar: string;
   stats: Record<string, { diffTotal: number, diffEff: number }>; // Pos -> Diffs
 };
+
+type SeasonPlayerImpact = PlayerImpact & { season: string };
 
 export default function LeaguePositionalPage() {
   const params = useParams();
@@ -58,6 +61,7 @@ export default function LeaguePositionalPage() {
   const [aggData, setAggData] = React.useState<AggregatePositionStats[]>([]);
   const [impacts, setImpacts] = React.useState<PlayerImpact[]>([]);
   const [heatmapData, setHeatmapData] = React.useState<LeagueHeatmapData[]>([]);
+  const [allHistoryImpacts, setAllHistoryImpacts] = React.useState<SeasonPlayerImpact[]>([]);
   const [metric, setMetric] = React.useState<'total' | 'efficiency'>('efficiency');
   const [showImpactModal, setShowImpactModal] = React.useState(false);
 
@@ -100,6 +104,7 @@ export default function LeaguePositionalPage() {
       }
 
       const results: LeagueBenchmarkResult[] = [];
+      const historyImpacts: SeasonPlayerImpact[] = [];
       const total = leaguesToAnalyze.length;
 
       for (let i = 0; i < total; i++) {
@@ -108,12 +113,14 @@ export default function LeaguePositionalPage() {
         try {
           const res = await analyzePositionalBenchmarks(l, user.user_id, true);
           results.push(res);
+          res.playerImpacts.forEach(p => historyImpacts.push({ ...p, season: l.season }));
         } catch (e) {
           console.log(`Skipping ${l.season}`, e);
         }
         setProgress(((i + 1) / total) * 100);
       }
 
+      setAllHistoryImpacts(historyImpacts);
       aggregateResults(results);
 
     } catch (e) {
@@ -405,6 +412,58 @@ export default function LeaguePositionalPage() {
                 onViewAll={() => setShowImpactModal(true)}
               />
             </Grid>
+
+          {/* Searchable History Table */}
+          <Grid size={{ xs: 12 }}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>Player Impact Search</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                Search and filter every player instance in the league history.
+              </Typography>
+              
+              <SmartTable
+                data={allHistoryImpacts}
+                keyField={(row) => `${row.season}-${row.ownerId}-${row.playerId}`}
+                defaultSortBy="totalPOLA"
+                defaultSortOrder="desc"
+                columns={[
+                  { id: 'name', label: 'Player', numeric: false, sortable: true, filterVariant: 'text' },
+                  { id: 'position', label: 'Pos', numeric: false, sortable: true, filterVariant: 'multi-select', width: 80 },
+                  { id: 'ownerName', label: 'Manager', numeric: false, sortable: true, filterVariant: 'multi-select' },
+                  { id: 'season', label: 'Season', numeric: false, sortable: true, filterVariant: 'multi-select', width: 100 },
+                  { 
+                    id: 'weeksStarted', 
+                    label: 'Starts', 
+                    numeric: true, 
+                    sortable: true,
+                    render: (row) => row.weeksStarted || row.weeks
+                  },
+                  { 
+                    id: 'totalPOLA', 
+                    label: 'Total Impact', 
+                    numeric: true, 
+                    sortable: true,
+                    render: (row) => (
+                      <Box sx={{ color: row.totalPOLA > 0 ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
+                        {row.totalPOLA > 0 ? '+' : ''}{row.totalPOLA.toFixed(1)}
+                      </Box>
+                    )
+                  },
+                  { 
+                    id: 'avgPOLA', 
+                    label: 'Avg Impact/Wk', 
+                    numeric: true, 
+                    sortable: true,
+                    render: (row) => (
+                      <Box sx={{ color: 'text.secondary' }}>
+                        {row.avgPOLA > 0 ? '+' : ''}{row.avgPOLA.toFixed(1)}
+                      </Box>
+                    )
+                  }
+                ]}
+              />
+            </Paper>
+          </Grid>
         </Grid>
       )}
 
