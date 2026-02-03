@@ -315,28 +315,11 @@ export default function LeaguePositionalPage() {
 
       {!loading && aggData.length > 0 && (
         <Grid container spacing={4}>
+          {/* Top Row: Heatmap & Legends */}
           <Grid size={{ xs: 12, lg: 8 }}>
-            <SkillProfileChart 
-              data={aggData} 
-              metric={metric} 
-              onMetricChange={setMetric} 
-              height={500}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, lg: 4 }}>
-            <PlayerImpactList 
-              impacts={impacts} 
-              maxItems={8}
-              title={mode === 'current' ? "Season Impact" : "All-Time Legends & Busts"}
-            />
-          </Grid>
-
-          {/* Heatmap Section */}
-          <Grid size={{ xs: 12 }}>
-            <Paper sx={{ p: 3, overflow: 'hidden' }}>
+            <Paper sx={{ p: 3, overflow: 'hidden', height: '100%' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6">League Skill Heatmap</Typography>
-                {/* We reuse the metric state for the heatmap toggle too */}
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
                 Comparing each manager's {metric === 'total' ? 'weekly output' : 'starting efficiency'} to the league average. Green = Above Avg, Red = Below Avg.
@@ -364,12 +347,9 @@ export default function LeaguePositionalPage() {
                         {VALID_POSITIONS.map(p => {
                           const val = metric === 'total' ? m.stats[p].diffTotal : m.stats[p].diffEff;
                           
-                          // Color logic
-                          // Efficiency: +/- 3 pts is huge. +/- 0.5 is noise.
-                          // Total: +/- 10 pts is huge.
                           const range = metric === 'total' ? 10 : 3;
                           let bg = 'transparent';
-                          let color = 'inherit';
+                          const color = 'inherit';
                           
                           if (val > 0) {
                              const intensity = Math.min(val / range, 1);
@@ -391,6 +371,24 @@ export default function LeaguePositionalPage() {
                 </Table>
               </TableContainer>
             </Paper>
+          </Grid>
+
+          <Grid size={{ xs: 12, lg: 4 }}>
+            <PlayerImpactList 
+              impacts={impacts} 
+              maxItems={10}
+              title={mode === 'current' ? "Season Impact" : "All-Time Legends & Busts"}
+            />
+          </Grid>
+
+          {/* Bottom Row: Detailed Chart */}
+          <Grid size={{ xs: 12 }}>
+            <SkillProfileChart 
+              data={aggData} 
+              metric={metric} 
+              onMetricChange={setMetric} 
+              height={400}
+            />
           </Grid>
         </Grid>
       )}

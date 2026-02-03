@@ -258,7 +258,7 @@ export default function LuckTrendsPage() {
       ) : (
         !loading && (
           <Alert severity="info">
-            Enter a username and click "Generate Trend Graph" to see historical performance.
+            Enter a username and click &quot;Generate Trend Graph&quot; to see historical performance.
           </Alert>
         )
       )}
