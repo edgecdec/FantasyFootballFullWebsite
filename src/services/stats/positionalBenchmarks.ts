@@ -20,6 +20,7 @@ export type PlayerImpact = {
   avgPOLA: number;
   ownerId: string;
   ownerName: string;
+  startedWeeks: Record<string, number[]>;
 };
 
 export type LeagueBenchmarkResult = {
@@ -137,9 +138,17 @@ export async function analyzePositionalBenchmarks(
 
   // Player Impacts (For everyone now)
   // Key: `${userId}_${playerId}`
-  const allPlayerImpactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string, ownerId: string }>();
+  const allPlayerImpactMap = new Map<string, { 
+    totalPOLA: number, 
+    weeks: number, 
+    name: string, 
+    pos: string, 
+    ownerId: string,
+    startedWeeks: Record<string, number[]> 
+  }>();
 
   allWeeksMatchups.forEach((weekMatchups, weekIdx) => {
+    const currentWeek = weeks[weekIdx]; // Get actual week number
     
     // Pre-calculate baseline per starter for this week (Efficiency)
     const weekAvgPerStarter = new Map<string, number>();
@@ -210,10 +219,19 @@ export async function analyzePositionalBenchmarks(
                 weeks: 0, 
                 name: pData ? `${pData.first_name} ${pData.last_name}` : 'Unknown',
                 pos: position,
-                ownerId: uid
+                ownerId: uid,
+                startedWeeks: {}
             };
+            
             pImpact.totalPOLA += impact;
             pImpact.weeks += 1;
+            
+            // Track specific week
+            if (!pImpact.startedWeeks[league.season]) {
+                pImpact.startedWeeks[league.season] = [];
+            }
+            pImpact.startedWeeks[league.season].push(currentWeek);
+            
             allPlayerImpactMap.set(key, pImpact);
         });
     });
@@ -299,7 +317,8 @@ export async function analyzePositionalBenchmarks(
           weeksStarted: val.weeks,
           avgPOLA: val.totalPOLA / val.weeks,
           ownerId: val.ownerId,
-          ownerName: ownerMeta?.displayName || 'Unknown'
+          ownerName: ownerMeta?.displayName || 'Unknown',
+          startedWeeks: val.startedWeeks
       };
   }).sort((a, b) => b.totalPOLA - a.totalPOLA); 
 

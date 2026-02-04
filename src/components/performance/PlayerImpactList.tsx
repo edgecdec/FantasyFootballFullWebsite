@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Paper, Box, Typography, Divider, Button } from '@mui/material';
+import { Paper, Box, Typography, Divider, Button, Tooltip } from '@mui/material';
 import { getPositionColor } from '@/constants/colors';
 
 export type PlayerImpact = {
@@ -14,6 +14,7 @@ export type PlayerImpact = {
   avgPOLA: number;
   ownerName?: string;
   ownerId?: string;
+  startedWeeks?: Record<string, number[]>;
 };
 
 type Props = {
@@ -22,6 +23,14 @@ type Props = {
   onViewAll?: () => void;
   maxItems?: number;
   mode?: 'all' | 'carriers' | 'anchors';
+};
+
+const formatWeeks = (weeks?: Record<string, number[]>) => {
+  if (!weeks) return 'No data';
+  return Object.entries(weeks)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([year, w]) => `${year}: Week ${w.sort((a, b) => a - b).join(', ')}`)
+    .join('\n');
 };
 
 export default function PlayerImpactList({ 
@@ -52,7 +61,12 @@ export default function PlayerImpactList({
                 <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {p.ownerName ? `${p.ownerName} • ` : ''}
-                  <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • {p.weeksStarted || p.weeks} starts
+                  <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • 
+                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow>
+                    <span style={{ cursor: 'help', borderBottom: '1px dotted #999', marginLeft: '4px' }}>
+                      {p.weeksStarted || p.weeks} starts
+                    </span>
+                  </Tooltip>
                 </Typography>
               </Box>
               <Box sx={{ textAlign: 'right' }}>
@@ -75,7 +89,12 @@ export default function PlayerImpactList({
                 <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {p.ownerName ? `${p.ownerName} • ` : ''}
-                  <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • {p.weeksStarted || p.weeks} starts
+                  <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • 
+                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow>
+                    <span style={{ cursor: 'help', borderBottom: '1px dotted #999', marginLeft: '4px' }}>
+                      {p.weeksStarted || p.weeks} starts
+                    </span>
+                  </Tooltip>
                 </Typography>
               </Box>
               <Box sx={{ textAlign: 'right' }}>
