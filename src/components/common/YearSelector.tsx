@@ -10,6 +10,7 @@ type YearSelectorProps = {
   onChange: (year: string) => void;
   minWidth?: number | string;
   disabled?: boolean;
+  requirePlayedGames?: boolean;
 };
 
 export default function YearSelector({ 
@@ -17,7 +18,8 @@ export default function YearSelector({
   selectedYear, 
   onChange, 
   minWidth = 100,
-  disabled = false 
+  disabled = false,
+  requirePlayedGames = true 
 }: YearSelectorProps) {
   const [years, setYears] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -36,7 +38,7 @@ export default function YearSelector({
 
       setLoading(true);
       try {
-        const activeSeasons = await SleeperService.getActiveSeasons(userId);
+        const activeSeasons = await SleeperService.getActiveSeasons(userId, requirePlayedGames);
         if (mounted && activeSeasons.length > 0) {
           setYears(activeSeasons);
           
@@ -55,7 +57,7 @@ export default function YearSelector({
     fetchSeasons();
 
     return () => { mounted = false; };
-  }, [userId]);
+  }, [userId, requirePlayedGames]);
 
   // Ensure selectedYear is in the list (or add it temporarily if loading/custom)
   const displayYears = React.useMemo(() => {

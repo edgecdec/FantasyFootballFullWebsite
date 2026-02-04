@@ -95,6 +95,7 @@ export default function DraftAssistantPage() {
             selectedYear={year} 
             onChange={setYear} 
             disabled={loading}
+            requirePlayedGames={false}
           />
           <Button 
             variant="contained" 

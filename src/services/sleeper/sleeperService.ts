@@ -211,8 +211,8 @@ export const SleeperService = {
     return false;
   },
 
-  async getActiveSeasons(userId: string): Promise<string[]> {
-    const cacheKey = `active_seasons_${userId}`;
+  async getActiveSeasons(userId: string, requirePlayedGames: boolean = false): Promise<string[]> {
+    const cacheKey = `active_seasons_${userId}_${requirePlayedGames}`;
     const cached = getCached<string[]>(cacheKey);
     if (cached) return cached;
 
@@ -225,7 +225,15 @@ export const SleeperService = {
     const results = await Promise.all(yearsToCheck.map(async (year) => {
       try {
         const leagues = await this.getLeagues(userId, year);
-        return leagues.length > 0 ? year : null;
+        if (leagues.length === 0) return null;
+
+        if (requirePlayedGames) {
+           // Only include year if at least one league has started playing or is complete
+           const hasGames = leagues.some(l => ['in_season', 'complete', 'playoffs'].includes(l.status));
+           return hasGames ? year : null;
+        }
+        
+        return year;
       } catch {
         return null;
       }
@@ -234,7 +242,7 @@ export const SleeperService = {
     const activeSeasons = results.filter((y): y is string => y !== null);
     
     // If no seasons found (e.g. API error or new user), return at least current year
-    if (activeSeasons.length === 0) activeSeasons.push(currentYear.toString());
+    if (activeSeasons.length === 0 && !requirePlayedGames) activeSeasons.push(currentYear.toString());
 
     setCached(cacheKey, activeSeasons);
     return activeSeasons;
