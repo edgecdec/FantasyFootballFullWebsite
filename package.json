@@ -2,7 +2,7 @@
   "name": "declan-fantasy-football",
   "version": "0.1.0",
   "private": true,
-  "description": "Declan Fantasy Football - Advanced Fantasy Football Analytics",
+  "description": "Declanalytics - Advanced Fantasy Football Analytics",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
