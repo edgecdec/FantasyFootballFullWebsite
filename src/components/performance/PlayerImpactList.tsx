@@ -26,7 +26,7 @@ type Props = {
 };
 
 const formatWeeks = (weeks?: Record<string, number[]>) => {
-  if (!weeks) return 'No data';
+  if (!weeks || Object.keys(weeks).length === 0) return 'No weekly data';
   return Object.entries(weeks)
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([year, w]) => `${year}: Week ${w.sort((a, b) => a - b).join(', ')}`)
@@ -40,6 +40,9 @@ export default function PlayerImpactList({
   maxItems = 4,
   mode = 'all'
 }: Props) {
+  // Debug
+  // console.log('PlayerImpactList impacts sample:', impacts.slice(0, 1));
+
   // Sort just in case
   const sorted = [...impacts].sort((a, b) => b.totalPOLA - a.totalPOLA);
   const carriers = sorted.slice(0, maxItems);
