@@ -202,7 +202,7 @@ export default function LeaguePositionalPage() {
     setAggData(chartData);
 
     // 2. Aggregate Player Impacts
-    const impactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string, ownerName: string }>();
+    const impactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string, ownerName: string, startedWeeks: Record<string, number[]> }>();
     
     results.forEach(res => {
       res.playerImpacts.forEach(p => {
@@ -212,10 +212,21 @@ export default function LeaguePositionalPage() {
             weeks: 0, 
             name: p.name, 
             pos: p.position,
-            ownerName: p.ownerName
+            ownerName: p.ownerName,
+            startedWeeks: {}
         };
         curr.totalPOLA += p.totalPOLA;
         curr.weeks += (p.weeksStarted || 0);
+        
+        if (p.startedWeeks) {
+          Object.entries(p.startedWeeks).forEach(([year, weeks]) => {
+            if (!curr.startedWeeks[year]) {
+              curr.startedWeeks[year] = [];
+            }
+            curr.startedWeeks[year] = Array.from(new Set([...curr.startedWeeks[year], ...weeks]));
+          });
+        }
+
         impactMap.set(key, curr);
       });
     });
