@@ -4,8 +4,10 @@ import * as React from 'react';
 import { Box, Paper, Typography, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { SleeperDraft, SleeperDraftPick } from '@/services/sleeper/sleeperService';
 import { VBDService, LeagueSettings, Player } from '@/services/draft/vbdService';
-import { MOCK_RANKINGS } from '@/data/mockRankings';
 import { getPositionColor, getPositionBgColor } from '@/constants/colors';
+import rankingsData from '../../../data/rankings.json';
+
+const RANKINGS = rankingsData as Player[];
 
 type Props = {
   draft: SleeperDraft;
@@ -19,7 +21,7 @@ export default function BestAvailable({ draft, picks }: Props) {
   React.useEffect(() => {
     // 1. Filter out drafted players
     const takenIds = new Set(picks.map(p => p.player_id));
-    const available = MOCK_RANKINGS.filter(p => !takenIds.has(p.player_id));
+    const available = RANKINGS.filter(p => !takenIds.has(p.player_id));
 
     // 2. Prepare Settings
     const settings: LeagueSettings = {
