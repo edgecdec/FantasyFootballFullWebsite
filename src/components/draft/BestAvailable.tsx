@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Paper, Typography, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
+import { Box, Paper, Typography, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { SleeperDraft, SleeperDraftPick } from '@/services/sleeper/sleeperService';
 import { VBDService, LeagueSettings, Player } from '@/services/draft/vbdService';
 import { MOCK_RANKINGS } from '@/data/mockRankings';
@@ -14,6 +14,7 @@ type Props = {
 
 export default function BestAvailable({ draft, picks }: Props) {
   const [bestAvailable, setBestAvailable] = React.useState<Player[]>([]);
+  const [positionFilter, setPositionFilter] = React.useState('ALL');
 
   React.useEffect(() => {
     // 1. Filter out drafted players
@@ -23,14 +24,14 @@ export default function BestAvailable({ draft, picks }: Props) {
     // 2. Prepare Settings
     const settings: LeagueSettings = {
       teams: draft.settings.teams,
-      format: 'standard', // Detect from settings if possible, assume standard for mock
+      format: 'standard', 
       roster: {
         QB: draft.settings.slots_qb,
         RB: draft.settings.slots_rb,
         WR: draft.settings.slots_wr,
         TE: draft.settings.slots_te,
         FLEX: draft.settings.slots_flex,
-        SUPER_FLEX: 0, // Not in basic settings obj usually, would need full settings scan
+        SUPER_FLEX: 0,
         K: draft.settings.slots_k,
         DEF: draft.settings.slots_def
       }
@@ -42,51 +43,85 @@ export default function BestAvailable({ draft, picks }: Props) {
 
   }, [draft, picks]);
 
+  const filteredPlayers = React.useMemo(() => {
+    if (positionFilter === 'ALL') return bestAvailable;
+    if (positionFilter === 'FLEX') return bestAvailable.filter(p => ['RB', 'WR', 'TE'].includes(p.position));
+    return bestAvailable.filter(p => p.position === positionFilter);
+  }, [bestAvailable, positionFilter]);
+
+  const handleFormatPositionFilter = (_: React.MouseEvent<HTMLElement>, newPos: string | null) => {
+    if (newPos) setPositionFilter(newPos);
+  };
+
   return (
     <Paper sx={{ p: 2, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" gutterBottom>Best Available (VBD)</Typography>
-      <Divider sx={{ mb: 1 }} />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Best Available</Typography>
+      </Box>
+      
+      <ToggleButtonGroup
+        value={positionFilter}
+        exclusive
+        onChange={handleFormatPositionFilter}
+        size="small"
+        sx={{ mb: 2, flexWrap: 'wrap', '& .MuiToggleButton-root': { py: 0.5, px: 1, fontSize: '0.75rem' } }}
+      >
+        <ToggleButton value="ALL">ALL</ToggleButton>
+        <ToggleButton value="QB" sx={{ color: getPositionColor('QB'), '&.Mui-selected': { bgcolor: getPositionBgColor('QB', 0.2), color: getPositionColor('QB') } }}>QB</ToggleButton>
+        <ToggleButton value="RB" sx={{ color: getPositionColor('RB'), '&.Mui-selected': { bgcolor: getPositionBgColor('RB', 0.2), color: getPositionColor('RB') } }}>RB</ToggleButton>
+        <ToggleButton value="WR" sx={{ color: getPositionColor('WR'), '&.Mui-selected': { bgcolor: getPositionBgColor('WR', 0.2), color: getPositionColor('WR') } }}>WR</ToggleButton>
+        <ToggleButton value="TE" sx={{ color: getPositionColor('TE'), '&.Mui-selected': { bgcolor: getPositionBgColor('TE', 0.2), color: getPositionColor('TE') } }}>TE</ToggleButton>
+        <ToggleButton value="FLEX">FLEX</ToggleButton>
+      </ToggleButtonGroup>
       
       <TableContainer sx={{ flexGrow: 1 }}>
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell>Rank</TableCell>
-              <TableCell>Player</TableCell>
-              <TableCell align="right">Proj</TableCell>
-              <TableCell align="right">Value</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Rank</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Player</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 'bold' }}>Value</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {bestAvailable.slice(0, 15).map((player) => (
-              <TableRow key={player.player_id} hover>
-                <TableCell>{player.rank}</TableCell>
-                <TableCell>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">{player.name}</Typography>
-                    <Box component="span" sx={{ 
-                      fontSize: '0.75rem', 
-                      color: getPositionColor(player.position), 
-                      bgcolor: getPositionBgColor(player.position, 0.1),
-                      px: 0.5, py: 0.25, borderRadius: 0.5,
-                      fontWeight: 'bold'
-                    }}>
-                      {player.position}
+            {filteredPlayers.slice(0, 20).map((player) => {
+              const rowBg = getPositionBgColor(player.position, 0.05);
+              const borderLeft = `4px solid ${getPositionColor(player.position)}`;
+              
+              return (
+                <TableRow 
+                  key={player.player_id} 
+                  hover
+                  sx={{ 
+                    bgcolor: rowBg, 
+                    '& td:first-of-type': { borderLeft: borderLeft }
+                  }}
+                >
+                  <TableCell sx={{ fontWeight: 'bold', color: 'text.secondary' }}>{player.rank}</TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">{player.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {player.position} - {player.team}
+                      </Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                      {player.team}
-                    </Typography>
-                  </Box>
-                </TableCell>
-                <TableCell align="right">{player.projected_points}</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold', color: (player.vbd_value || 0) > 0 ? 'success.main' : 'text.primary' }}>
-                  {(player.vbd_value || 0).toFixed(1)}
-                </TableCell>
-              </TableRow>
-            ))}
-            {bestAvailable.length === 0 && (
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold" sx={{ color: (player.vbd_value || 0) > 0 ? 'success.main' : 'text.primary' }}>
+                        {(player.vbd_value || 0).toFixed(1)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {player.projected_points} pts
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {filteredPlayers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center">No players found</TableCell>
+                <TableCell colSpan={3} align="center">No players found</TableCell>
               </TableRow>
             )}
           </TableBody>
