@@ -6,17 +6,19 @@ import PageHeader from '@/components/common/PageHeader';
 import UserSearchInput from '@/components/common/UserSearchInput';
 import YearSelector from '@/components/common/YearSelector';
 import { useUser } from '@/context/UserContext';
-import { SleeperService, SleeperDraft } from '@/services/sleeper/sleeperService';
+import { SleeperService, SleeperDraft, SleeperDraftPick } from '@/services/sleeper/sleeperService';
+import DraftBoard from '@/components/draft/DraftBoard';
 
 export default function DraftAssistantPage() {
   const { user, fetchUser } = useUser();
   const [username, setUsername] = React.useState('');
-  // Drafts happen early, so default to actual current year (e.g. Feb 2026 = 2026 season)
   const [year, setYear] = React.useState(String(new Date().getFullYear()));
   
   const [loading, setLoading] = React.useState(false);
   const [drafts, setDrafts] = React.useState<SleeperDraft[]>([]);
   const [selectedDraft, setSelectedDraft] = React.useState<SleeperDraft | null>(null);
+  const [picks, setPicks] = React.useState<SleeperDraftPick[]>([]);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   // Init username
   React.useEffect(() => {
@@ -33,25 +35,32 @@ export default function DraftAssistantPage() {
     }
   }, [user]);
 
+  // Poll for updates if connected
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (selectedDraft && selectedDraft.status === 'drafting') {
+      interval = setInterval(fetchPicks, 15000); // 15s refresh
+    }
+    return () => clearInterval(interval);
+  }, [selectedDraft]);
+
   const handleFindDrafts = async () => {
     if (!username) return;
     setLoading(true);
     setDrafts([]);
     setSelectedDraft(null);
+    setPicks([]);
 
     try {
       let currentUser = user;
-      // Ensure we have the correct user object if username changed manually
       if (!currentUser || currentUser.username.toLowerCase() !== username.toLowerCase()) {
         currentUser = await SleeperService.getUser(username);
         if (!currentUser) throw new Error('User not found');
-        fetchUser(username); // Update context
+        fetchUser(username);
       }
 
       const foundDrafts = await SleeperService.getDrafts(currentUser.user_id, year);
       
-      // Filter out completed ones? Maybe keep them for testing/review.
-      // Sort by status: drafting -> pre_draft -> complete
       const statusOrder = { 'drafting': 0, 'paused': 1, 'pre_draft': 2, 'complete': 3 };
       foundDrafts.sort((a, b) => {
         const sA = statusOrder[a.status as keyof typeof statusOrder] ?? 99;
@@ -69,9 +78,25 @@ export default function DraftAssistantPage() {
     }
   };
 
-  const handleSelectDraft = (draft: SleeperDraft) => {
+  const handleSelectDraft = async (draft: SleeperDraft) => {
     setSelectedDraft(draft);
-    // TODO: Load picks and rankings
+    setRefreshing(true);
+    try {
+      const fetchedPicks = await SleeperService.getDraftPicks(draft.draft_id);
+      setPicks(fetchedPicks);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const fetchPicks = async () => {
+    if (!selectedDraft) return;
+    try {
+      const fetchedPicks = await SleeperService.getDraftPicks(selectedDraft.draft_id);
+      setPicks(fetchedPicks);
+    } catch (e) { console.error(e); }
   };
 
   return (
@@ -82,33 +107,35 @@ export default function DraftAssistantPage() {
       />
 
       <Alert severity="warning" sx={{ mb: 4 }}>
-        <strong>Development Mode Only:</strong> This feature is currently under active construction. Data may be mocked or unavailable.
+        <strong>Development Mode Only:</strong> This feature is currently under active construction. Rankings are simulated.
       </Alert>
 
       {/* Connection Panel */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>Connect to Draft</Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <UserSearchInput username={username} setUsername={setUsername} disabled={loading} />
-          <YearSelector 
-            userId={user?.user_id} 
-            selectedYear={year} 
-            onChange={setYear} 
-            disabled={loading}
-            requirePlayedGames={false}
-          />
-          <Button 
-            variant="contained" 
-            size="large" 
-            sx={{ height: 56 }}
-            onClick={handleFindDrafts}
-            disabled={loading || !username}
-          >
-            {loading ? 'Scanning...' : 'Find Drafts'}
-          </Button>
-        </Box>
-        {loading && <LinearProgress sx={{ mt: 2 }} />}
-      </Paper>
+      {!selectedDraft && (
+        <Paper sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h6" gutterBottom>Connect to Draft</Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <UserSearchInput username={username} setUsername={setUsername} disabled={loading} />
+            <YearSelector 
+              userId={user?.user_id} 
+              selectedYear={year} 
+              onChange={setYear} 
+              disabled={loading}
+              requirePlayedGames={false}
+            />
+            <Button 
+              variant="contained" 
+              size="large" 
+              sx={{ height: 56 }}
+              onClick={handleFindDrafts}
+              disabled={loading || !username}
+            >
+              {loading ? 'Scanning...' : 'Find Drafts'}
+            </Button>
+          </Box>
+          {loading && <LinearProgress sx={{ mt: 2 }} />}
+        </Paper>
+      )}
 
       {/* Draft List */}
       {!selectedDraft && drafts.length > 0 && (
@@ -121,7 +148,7 @@ export default function DraftAssistantPage() {
                   <ListItemButton onClick={() => handleSelectDraft(draft)}>
                     <ListItemText 
                       primary={draft.metadata.name || `Draft ${draft.season}`}
-                      secondary={`${draft.type} • ${draft.settings.teams} Teams`}
+                      secondary={`${draft.type} • ${draft.settings.teams} Teams • ${draft.settings.rounds} Rounds`}
                     />
                     <Chip 
                       label={draft.status.replace('_', ' ')} 
@@ -136,12 +163,29 @@ export default function DraftAssistantPage() {
         </Paper>
       )}
 
-      {/* Draft Board Placeholder */}
+      {/* Connected Draft View */}
       {selectedDraft && (
-        <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Typography variant="h4" gutterBottom>Connected to: {selectedDraft.metadata.name}</Typography>
-          <Typography>ID: {selectedDraft.draft_id}</Typography>
-          <Button variant="outlined" onClick={() => setSelectedDraft(null)} sx={{ mt: 2 }}>Back to List</Button>
+        <Box>
+          <Paper sx={{ p: 2, mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'primary.dark', color: 'white' }}>
+            <Box>
+              <Typography variant="h5" fontWeight="bold">{selectedDraft.metadata.name || 'Draft'}</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                {selectedDraft.draft_id} • {selectedDraft.status}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button variant="outlined" color="inherit" onClick={fetchPicks} disabled={refreshing}>
+                Refresh Board
+              </Button>
+              <Button variant="contained" color="error" onClick={() => setSelectedDraft(null)}>
+                Disconnect
+              </Button>
+            </Box>
+          </Paper>
+
+          {refreshing && <LinearProgress sx={{ mb: 2 }} />}
+
+          <DraftBoard draft={selectedDraft} picks={picks} />
         </Box>
       )}
     </Container>
