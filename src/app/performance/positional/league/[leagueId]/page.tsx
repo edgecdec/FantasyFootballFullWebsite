@@ -240,6 +240,9 @@ export default function LeaguePositionalPage() {
             }
           });
         }
+        
+        // Force update map
+        impactMap.set(key, curr);
       });
     });
 
