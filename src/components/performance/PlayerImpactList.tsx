@@ -65,7 +65,7 @@ export default function PlayerImpactList({
                 <Typography variant="caption" color="text.secondary">
                   {p.ownerName ? `${p.ownerName} • ` : ''}
                   <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • 
-                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow>
+                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow placement="top">
                     <span style={{ cursor: 'help', borderBottom: '1px dotted #999', marginLeft: '4px' }}>
                       {p.weeksStarted || p.weeks} starts
                     </span>
@@ -93,7 +93,7 @@ export default function PlayerImpactList({
                 <Typography variant="caption" color="text.secondary">
                   {p.ownerName ? `${p.ownerName} • ` : ''}
                   <Box component="span" sx={{ color: getPositionColor(p.position), fontWeight: 'bold' }}>{p.position}</Box> • 
-                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow>
+                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(p.startedWeeks)}</div>} arrow placement="top">
                     <span style={{ cursor: 'help', borderBottom: '1px dotted #999', marginLeft: '4px' }}>
                       {p.weeksStarted || p.weeks} starts
                     </span>

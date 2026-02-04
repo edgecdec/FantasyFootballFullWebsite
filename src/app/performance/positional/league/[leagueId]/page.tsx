@@ -469,7 +469,7 @@ export default function LeaguePositionalPage() {
                     numeric: true, 
                     sortable: true,
                     render: (row) => (
-                      <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow>
+                      <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow placement="top">
                         <span style={{ cursor: 'help', borderBottom: '1px dotted #999' }}>
                           {row.weeksStarted || row.weeks}
                         </span>
@@ -563,7 +563,7 @@ export default function LeaguePositionalPage() {
                 numeric: true, 
                 sortable: true,
                 render: (row) => (
-                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow>
+                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow placement="top">
                     <span style={{ cursor: 'help', borderBottom: '1px dotted #999' }}>
                       {row.weeksStarted || row.weeks}
                     </span>
