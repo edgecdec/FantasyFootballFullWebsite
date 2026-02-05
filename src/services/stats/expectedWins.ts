@@ -1,4 +1,5 @@
 import { SleeperService, SleeperLeague, SleeperRoster } from '@/services/sleeper/sleeperService';
+import { CacheService } from '@/services/common/cacheService';
 
 export type TeamStats = {
   rosterId: number;
@@ -19,6 +20,10 @@ export type LeagueAnalysisResult = {
 };
 
 export async function analyzeLeague(league: SleeperLeague, userId?: string): Promise<LeagueAnalysisResult> {
+  const cacheKey = `analysis_luck_${league.league_id}_${userId || 'global'}`;
+  const cached = CacheService.get<LeagueAnalysisResult>(cacheKey, 'local');
+  if (cached) return cached;
+
   // 1. Fetch Rosters & Users
   const [rostersRes, usersRes] = await Promise.all([
     fetch(`https://api.sleeper.app/v1/league/${league.league_id}/rosters`),
@@ -113,8 +118,14 @@ export async function analyzeLeague(league: SleeperLeague, userId?: string): Pro
   const standings = Array.from(rosterMap.values()).sort((a, b) => b.expectedWins - a.expectedWins);
   const myStats = rosterMap.get(myRosterId);
 
-  return {
+  const result = {
     standings,
     userStats: myStats
   };
+
+  // Cache results: Long-lived for complete leagues, short-lived for active ones
+  const ttl = league.status === 'complete' ? 1000 * 60 * 60 * 24 * 7 : 1000 * 60 * 15;
+  CacheService.set(cacheKey, result, { storage: 'local', ttl });
+
+  return result;
 }

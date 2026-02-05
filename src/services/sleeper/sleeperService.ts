@@ -1,4 +1,5 @@
 import { Player } from '@/types/player';
+import { CacheService } from '@/services/common/cacheService';
 
 const BASE_URL = 'https://api.sleeper.app/v1';
 
@@ -108,50 +109,17 @@ export type SleeperDraftPick = {
   };
 };
 
-// Cache keys
-const CACHE_PREFIX = 'sleeper_cache_';
-const CACHE_DURATION_MS = 1000 * 60 * 15; // 15 minutes
-
-// Helper to handle caching
-function getCached<T>(key: string): T | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const item = sessionStorage.getItem(CACHE_PREFIX + key);
-    if (!item) return null;
-    const parsed = JSON.parse(item);
-    if (Date.now() - parsed.timestamp > CACHE_DURATION_MS) {
-      sessionStorage.removeItem(CACHE_PREFIX + key);
-      return null;
-    }
-    return parsed.data;
-  } catch {
-    return null;
-  }
-}
-
-function setCached(key: string, data: any) {
-  if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({
-      timestamp: Date.now(),
-      data
-    }));
-  } catch (e) {
-    console.warn('Session storage full or disabled', e);
-  }
-}
-
 export const SleeperService = {
   async getUser(username: string): Promise<SleeperUser | null> {
     const cacheKey = `user_${username.toLowerCase()}`;
-    const cached = getCached<SleeperUser>(cacheKey);
+    const cached = CacheService.get<SleeperUser>(cacheKey, 'local');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/user/${username}`);
       if (!res.ok) return null;
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'local', ttl: 1000 * 60 * 60 * 24 }); // 24h
       return data;
     } catch (e) {
       console.error('Error fetching user', e);
@@ -161,14 +129,14 @@ export const SleeperService = {
 
   async getLeagues(userId: string, year: string): Promise<SleeperLeague[]> {
     const cacheKey = `leagues_${userId}_${year}`;
-    const cached = getCached<SleeperLeague[]>(cacheKey);
+    const cached = CacheService.get<SleeperLeague[]>(cacheKey, 'local');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/user/${userId}/leagues/nfl/${year}`);
       if (!res.ok) return [];
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'local', ttl: 1000 * 60 * 60 * 12 }); // 12h
       return data;
     } catch (e) {
       console.error('Error fetching leagues', e);
@@ -178,14 +146,14 @@ export const SleeperService = {
 
   async getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]> {
     const cacheKey = `matchups_${leagueId}_${week}`;
-    const cached = getCached<SleeperMatchup[]>(cacheKey);
+    const cached = CacheService.get<SleeperMatchup[]>(cacheKey, 'session');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/league/${leagueId}/matchups/${week}`);
       if (!res.ok) return [];
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'session' });
       return data;
     } catch (e) {
       console.error(`Error fetching matchups for league ${leagueId} week ${week}`, e);
@@ -213,7 +181,7 @@ export const SleeperService = {
 
   async getActiveSeasons(userId: string, requirePlayedGames: boolean = false): Promise<string[]> {
     const cacheKey = `active_seasons_${userId}_${requirePlayedGames}`;
-    const cached = getCached<string[]>(cacheKey);
+    const cached = CacheService.get<string[]>(cacheKey, 'local');
     if (cached) return cached;
 
     const startYear = 2017;
@@ -244,20 +212,20 @@ export const SleeperService = {
     // If no seasons found (e.g. API error or new user), return at least current year
     if (activeSeasons.length === 0 && !requirePlayedGames) activeSeasons.push(currentYear.toString());
 
-    setCached(cacheKey, activeSeasons);
+    CacheService.set(cacheKey, activeSeasons, { storage: 'local', ttl: 1000 * 60 * 60 * 6 }); // 6h
     return activeSeasons;
   },
 
   async getWinnersBracket(leagueId: string): Promise<SleeperBracketMatch[]> {
     const cacheKey = `bracket_winners_${leagueId}`;
-    const cached = getCached<SleeperBracketMatch[]>(cacheKey);
+    const cached = CacheService.get<SleeperBracketMatch[]>(cacheKey, 'session');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/league/${leagueId}/winners_bracket`);
       if (!res.ok) return [];
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'session' });
       return data;
     } catch (e) {
       console.error(`Error fetching winners bracket for league ${leagueId}`, e);
@@ -267,14 +235,14 @@ export const SleeperService = {
 
   async getLosersBracket(leagueId: string): Promise<SleeperBracketMatch[]> {
     const cacheKey = `bracket_losers_${leagueId}`;
-    const cached = getCached<SleeperBracketMatch[]>(cacheKey);
+    const cached = CacheService.get<SleeperBracketMatch[]>(cacheKey, 'session');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/league/${leagueId}/losers_bracket`);
       if (!res.ok) return [];
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'session' });
       return data;
     } catch (e) {
       console.error(`Error fetching losers bracket for league ${leagueId}`, e);
@@ -284,14 +252,14 @@ export const SleeperService = {
 
   async getDrafts(userId: string, year: string): Promise<SleeperDraft[]> {
     const cacheKey = `drafts_${userId}_${year}`;
-    const cached = getCached<SleeperDraft[]>(cacheKey);
+    const cached = CacheService.get<SleeperDraft[]>(cacheKey, 'session');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/user/${userId}/drafts/nfl/${year}`);
       if (!res.ok) return [];
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'session' });
       return data;
     } catch (e) {
       console.error('Error fetching drafts', e);
@@ -301,14 +269,14 @@ export const SleeperService = {
 
   async getDraft(draftId: string): Promise<SleeperDraft | null> {
     const cacheKey = `draft_${draftId}`;
-    const cached = getCached<SleeperDraft>(cacheKey);
+    const cached = CacheService.get<SleeperDraft>(cacheKey, 'session');
     if (cached) return cached;
 
     try {
       const res = await fetch(`${BASE_URL}/draft/${draftId}`);
       if (!res.ok) return null;
       const data = await res.json();
-      setCached(cacheKey, data);
+      CacheService.set(cacheKey, data, { storage: 'session' });
       return data;
     } catch (e) {
       console.error(`Error fetching draft ${draftId}`, e);
@@ -335,14 +303,16 @@ export const SleeperService = {
 
     while (currentId) {
       const cacheKey = `league_${currentId}`;
-      let league = getCached<SleeperLeague>(cacheKey);
+      let league = CacheService.get<SleeperLeague>(cacheKey, 'local');
 
       if (!league) {
         try {
           const res = await fetch(`${BASE_URL}/league/${currentId}`);
           if (!res.ok) break;
           league = await res.json();
-          setCached(cacheKey, league);
+          // League details never change once season is over
+          const ttl = league!.status === 'complete' ? 1000 * 60 * 60 * 24 * 30 : 1000 * 60 * 60;
+          CacheService.set(cacheKey, league, { storage: 'local', ttl });
         } catch (e) {
           console.error(`Error fetching league ${currentId}`, e);
           break;
@@ -351,39 +321,35 @@ export const SleeperService = {
 
       if (league) {
         history.push(league);
-        currentId = (league as any).previous_league_id; // Cast to access unchecked prop
+        currentId = (league as any).previous_league_id;
       } else {
         break;
       }
       
-      // Safety break for loops
       if (history.length > 20) break; 
     }
 
     return history;
   },
 
-  // Batch fetch rosters with concurrency limit
   async fetchAllRosters(
     leagues: SleeperLeague[], 
     userId: string,
     onProgress: (completed: number, total: number) => void
   ): Promise<Map<string, SleeperRoster>> {
-    const results = new Map<string, SleeperRoster>(); // league_id -> roster
+    const results = new Map<string, SleeperRoster>();
     const total = leagues.length;
     let completed = 0;
 
-    // Filter out leagues we already have in cache
     const leaguesToFetch = [];
     for (const league of leagues) {
       const cacheKey = `rosters_${league.league_id}`;
-      const cachedRosters = getCached<SleeperRoster[]>(cacheKey);
+      const cachedRosters = CacheService.get<SleeperRoster[]>(cacheKey, 'session');
       
       if (cachedRosters) {
-        // Find user's roster in cached data
         const userRoster = cachedRosters.find(r => r.owner_id === userId);
         if (userRoster) {
-          userRoster.league_id = league.league_id; // Ensure ID is attached
+          userRoster.league_id = league.league_id;
           results.set(league.league_id, userRoster);
         }
         completed++;
@@ -395,7 +361,6 @@ export const SleeperService = {
 
     if (leaguesToFetch.length === 0) return results;
 
-    // Concurrency Helper
     const CONCURRENCY_LIMIT = 5;
     const chunks = [];
     for (let i = 0; i < leaguesToFetch.length; i += CONCURRENCY_LIMIT) {
@@ -408,8 +373,8 @@ export const SleeperService = {
           const res = await fetch(`${BASE_URL}/league/${league.league_id}/rosters`);
           if (res.ok) {
             const rosters: SleeperRoster[] = await res.json();
-            // Cache ALL rosters for this league (valuable for other features later)
-            setCached(`rosters_${league.league_id}`, rosters);
+            const ttl = league.status === 'complete' ? 1000 * 60 * 60 * 24 : 1000 * 60 * 15;
+            CacheService.set(`rosters_${league.league_id}`, rosters, { storage: 'session', ttl });
             
             const userRoster = rosters.find(r => r.owner_id === userId);
             if (userRoster) {
@@ -424,15 +389,12 @@ export const SleeperService = {
           onProgress(completed, total);
         }
       }));
-      
-      // Small delay to be nice to API
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     return results;
   },
 
-  // Batch fetch matchups for a specific week
   async fetchAllMatchups(
     leagues: SleeperLeague[],
     week: number,
@@ -451,9 +413,8 @@ export const SleeperService = {
     for (const chunk of chunks) {
       await Promise.all(chunk.map(async (league) => {
         try {
-          // Check cache inside the loop to allow partial caching if needed
           const cacheKey = `matchups_${league.league_id}_${week}`;
-          const cached = getCached<SleeperMatchup[]>(cacheKey);
+          const cached = CacheService.get<SleeperMatchup[]>(cacheKey, 'session');
           
           if (cached) {
             results.set(league.league_id, cached);
@@ -461,7 +422,8 @@ export const SleeperService = {
             const res = await fetch(`${BASE_URL}/league/${league.league_id}/matchups/${week}`);
             if (res.ok) {
               const data = await res.json();
-              setCached(cacheKey, data);
+              const ttl = league.status === 'complete' ? 1000 * 60 * 60 * 24 : 1000 * 60 * 15;
+              CacheService.set(cacheKey, data, { storage: 'session', ttl });
               results.set(league.league_id, data);
             }
           }
@@ -472,7 +434,6 @@ export const SleeperService = {
           onProgress(completed, total);
         }
       }));
-      
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 

@@ -1,4 +1,5 @@
 import { SleeperService, SleeperLeague, SleeperMatchup } from '@/services/sleeper/sleeperService';
+import { CacheService } from '@/services/common/cacheService';
 import playerData from '../../../data/sleeper_players.json';
 
 // Types
@@ -41,7 +42,10 @@ export async function analyzePositionalBenchmarks(
   userId: string,
   includePlayoffs: boolean = true
 ): Promise<LeagueBenchmarkResult> {
-  
+  const cacheKey = `analysis_positional_${league.league_id}_${userId}_${includePlayoffs}`;
+  const cached = CacheService.get<LeagueBenchmarkResult>(cacheKey, 'local');
+  if (cached) return cached;
+
   // 1. Determine Weeks to Analyze
   const startWeek = league.settings.start_week || 1;
   const playoffStart = league.settings.playoff_week_start || 15;
@@ -322,7 +326,7 @@ export async function analyzePositionalBenchmarks(
       };
   }).sort((a, b) => b.totalPOLA - a.totalPOLA); 
 
-  return {
+  const result = {
     leagueId: league.league_id,
     leagueName: league.name,
     userStats: allRosterStats[userId] || {}, // Fallback if user not found
@@ -331,4 +335,10 @@ export async function analyzePositionalBenchmarks(
     allRosterStats,
     rosterMeta: Object.fromEntries(userMeta)
   };
+
+  // Cache results
+  const ttl = league.status === 'complete' ? 1000 * 60 * 60 * 24 * 7 : 1000 * 60 * 15;
+  CacheService.set(cacheKey, result, { storage: 'local', ttl });
+
+  return result;
 }
