@@ -34,6 +34,7 @@ import SkillProfileChart, { AggregatePositionStats } from '@/components/performa
 import PlayerImpactList, { PlayerImpact } from '@/components/performance/PlayerImpactList';
 import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
 import { getPositionColor } from '@/constants/colors';
+import StartsTooltip from '@/components/performance/StartsTooltip';
 
 const VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
@@ -45,14 +46,6 @@ type LeagueHeatmapData = {
 };
 
 type SeasonPlayerImpact = PlayerImpact & { season: string };
-
-const formatWeeks = (weeks?: Record<string, number[]>) => {
-  if (!weeks || Object.keys(weeks).length === 0) return 'No weekly data';
-  return Object.entries(weeks)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([year, w]) => `${year}: Week ${w.sort((a, b) => a - b).join(', ')}`)
-    .join('\n');
-};
 
 export default function LeaguePositionalPage() {
   const params = useParams();
@@ -480,11 +473,7 @@ export default function LeaguePositionalPage() {
                     numeric: true, 
                     sortable: true,
                     render: (row) => (
-                      <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow placement="top">
-                        <span style={{ cursor: 'help', borderBottom: '1px dotted #999' }}>
-                          {row.weeksStarted || row.weeks}
-                        </span>
-                      </Tooltip>
+                      <StartsTooltip weeksStarted={row.weeksStarted || row.weeks} startedWeeks={row.startedWeeks} />
                     )
                   },
                   { 
@@ -574,11 +563,7 @@ export default function LeaguePositionalPage() {
                 numeric: true, 
                 sortable: true,
                 render: (row) => (
-                  <Tooltip title={<div style={{ whiteSpace: 'pre-line' }}>{formatWeeks(row.startedWeeks)}</div>} arrow placement="top">
-                    <span style={{ cursor: 'help', borderBottom: '1px dotted #999' }}>
-                      {row.weeksStarted || row.weeks}
-                    </span>
-                  </Tooltip>
+                  <StartsTooltip weeksStarted={row.weeksStarted || row.weeks} startedWeeks={row.startedWeeks} />
                 )
               },
               { 

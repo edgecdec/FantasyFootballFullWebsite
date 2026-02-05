@@ -60,6 +60,9 @@ import UserSearchInput from '@/components/common/UserSearchInput';
 import YearSelector from '@/components/common/YearSelector';
 import SkillProfileChart, { AggregatePositionStats } from '@/components/performance/SkillProfileChart';
 import PlayerImpactList from '@/components/performance/PlayerImpactList';
+import SmartTable, { SmartColumn } from '@/components/common/SmartTable';
+import { getPositionColor } from '@/constants/colors';
+import StartsTooltip from '@/components/performance/StartsTooltip';
 
 const VALID_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
@@ -228,7 +231,13 @@ export default function PositionalBenchmarksPage() {
   };
 
   const calculateGlobalImpacts = (data: LeagueResultItem[]) => {
-    const impactMap = new Map<string, { totalPOLA: number, weeks: number, name: string, pos: string }>();
+    const impactMap = new Map<string, { 
+      totalPOLA: number, 
+      weeks: number, 
+      name: string, 
+      pos: string,
+      startedWeeks: Record<string, number[]>
+    }>();
 
     data
       .filter(item => item.category === 'included')
@@ -241,10 +250,28 @@ export default function PositionalBenchmarksPage() {
         item.result.playerImpacts.forEach(p => {
           // Only count MY impacts for the portfolio view
           if (p.ownerId === user?.user_id) {
-            const curr = impactMap.get(p.playerId) || { totalPOLA: 0, weeks: 0, name: p.name, pos: p.position };
+            let curr = impactMap.get(p.playerId);
+            if (!curr) {
+              curr = { 
+                totalPOLA: 0, 
+                weeks: 0, 
+                name: p.name, 
+                pos: p.position,
+                startedWeeks: {}
+              };
+              impactMap.set(p.playerId, curr);
+            }
+            
             curr.totalPOLA += p.totalPOLA;
             curr.weeks += p.weeksStarted;
-            impactMap.set(p.playerId, curr);
+            
+            // Merge weeks
+            if (p.startedWeeks) {
+              Object.entries(p.startedWeeks).forEach(([year, wks]) => {
+                if (!curr!.startedWeeks[year]) curr!.startedWeeks[year] = [];
+                curr!.startedWeeks[year] = Array.from(new Set([...curr!.startedWeeks[year], ...wks]));
+              });
+            }
           }
         });
       });
@@ -396,7 +423,9 @@ export default function PositionalBenchmarksPage() {
                     <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, p: 1, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1 }}>
                       <Box>
                         <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{p.position} • {p.weeksStarted} starts</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {p.position} • <StartsTooltip weeksStarted={p.weeksStarted} startedWeeks={p.startedWeeks} />
+                        </Typography>
                       </Box>
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="body2" fontWeight="bold" color="#66bb6a">+{p.totalPOLA.toFixed(1)}</Typography>
@@ -411,7 +440,9 @@ export default function PositionalBenchmarksPage() {
                     <Box key={p.playerId} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, p: 1, bgcolor: 'rgba(239, 83, 80, 0.1)', borderRadius: 1 }}>
                       <Box>
                         <Typography variant="body2" fontWeight="bold">{p.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{p.position} • {p.weeksStarted} starts</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {p.position} • <StartsTooltip weeksStarted={p.weeksStarted} startedWeeks={p.startedWeeks} />
+                        </Typography>
                       </Box>
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="body2" fontWeight="bold" color="#ef5350">{p.totalPOLA.toFixed(1)}</Typography>
@@ -570,36 +601,59 @@ export default function PositionalBenchmarksPage() {
             Cumulative Points Over League Average (POLA).
           </Typography>
           
-          <TableContainer>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Rank</TableCell>
-                  <TableCell>Player</TableCell>
-                  <TableCell>Pos</TableCell>
-                  <TableCell align="right">Starts</TableCell>
-                  <TableCell align="right">Total Impact</TableCell>
-                  <TableCell align="right">Avg Impact/Wk</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {impactsModalData?.map((p, index) => (
-                  <TableRow key={p.playerId} hover>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>{p.name}</TableCell>
-                    <TableCell>{p.position}</TableCell>
-                    <TableCell align="right">{p.weeksStarted || p.weeks}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold', color: p.totalPOLA > 0 ? 'success.main' : 'error.main' }}>
-                      {p.totalPOLA > 0 ? '+' : ''}{p.totalPOLA.toFixed(1)}
-                    </TableCell>
-                    <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                      {p.avgPOLA > 0 ? '+' : ''}{p.avgPOLA.toFixed(1)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <SmartTable
+            data={impactsModalData || []}
+            keyField="playerId"
+            defaultSortBy="totalPOLA"
+            defaultSortOrder="desc"
+            columns={[
+              { id: 'name', label: 'Player', numeric: false, sortable: true, filterVariant: 'text' },
+              { 
+                id: 'position', 
+                label: 'Pos', 
+                numeric: false, 
+                sortable: true, 
+                filterVariant: 'multi-select', 
+                width: 80,
+                render: (row) => (
+                  <Box component="span" sx={{ color: getPositionColor(row.position), fontWeight: 'bold' }}>
+                    {row.position}
+                  </Box>
+                )
+              },
+              { 
+                id: 'weeks', 
+                label: 'Starts', 
+                numeric: true, 
+                sortable: true,
+                render: (row) => (
+                  <StartsTooltip weeksStarted={row.weeksStarted || row.weeks} startedWeeks={row.startedWeeks} />
+                )
+              },
+              { 
+                id: 'totalPOLA', 
+                label: 'Total Impact', 
+                numeric: true, 
+                sortable: true,
+                render: (row) => (
+                  <Box sx={{ color: row.totalPOLA > 0 ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
+                    {row.totalPOLA > 0 ? '+' : ''}{row.totalPOLA.toFixed(1)}
+                  </Box>
+                )
+              },
+              { 
+                id: 'avgPOLA', 
+                label: 'Avg Impact/Wk', 
+                numeric: true, 
+                sortable: true,
+                render: (row) => (
+                  <Box sx={{ color: 'text.secondary' }}>
+                    {row.avgPOLA > 0 ? '+' : ''}{row.avgPOLA.toFixed(1)}
+                  </Box>
+                )
+              }
+            ]}
+          />
         </Paper>
       </Modal>
     </Container>
