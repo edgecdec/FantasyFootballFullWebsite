@@ -233,11 +233,6 @@ export default function LeaguePositionalPage() {
             const existing = curr!.startedWeeks[year];
             const incoming = weeks || [];
             curr!.startedWeeks[year] = Array.from(new Set([...existing, ...incoming]));
-            
-            // Debug
-            if (p.name === 'Josh Allen') {
-                console.log(`Merged ${year} for Josh Allen. Incoming: ${incoming.length}, Result: ${curr!.startedWeeks[year].length}`);
-            }
           });
         }
         
@@ -253,15 +248,9 @@ export default function LeaguePositionalPage() {
       totalPOLA: val.totalPOLA,
       weeks: val.weeks,
       avgPOLA: val.totalPOLA / (val.weeks || 1),
-      ownerName: val.ownerName
+      ownerName: val.ownerName,
+      startedWeeks: val.startedWeeks
     })).sort((a, b) => b.totalPOLA - a.totalPOLA);
-
-    const firstWithWeeks = impactList.find(i => i.startedWeeks && Object.keys(i.startedWeeks).length > 0);
-    if (firstWithWeeks) {
-        console.log('Final Impact Item with weeks:', firstWithWeeks.name, firstWithWeeks.startedWeeks);
-    } else {
-        console.log('WARNING: No impacts have startedWeeks populated!');
-    }
 
     setImpacts(impactList);
 
